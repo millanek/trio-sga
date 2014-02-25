@@ -239,7 +239,7 @@ DuplicateCheckResult QCProcess::performDuplicateCheck(const SequenceWorkItem& wo
     int64_t ri = rcIntervals.interval[0].isValid() ? rcIntervals.interval[0].lower : std::numeric_limits<int64_t>::max();
     int64_t canonicalIdx = std::min(fi, ri);
 
-    // Check if the bit reprsenting the canonical index is set in the shared bit vector
+    // Check if the bit representing the canonical index is set in the shared bit vector
     if(!m_params.pSharedBV->test(canonicalIdx))
     {
         // This read is not a duplicate
@@ -252,7 +252,7 @@ DuplicateCheckResult QCProcess::performDuplicateCheck(const SequenceWorkItem& wo
         else
         {
             // Call failed, some other thread set the bit before
-            // this thread. Return that the reead is a duplicate
+            // this thread. Return that the read is a duplicate
             return DCR_FULL_LENGTH_DUPLICATE;
         }
     }

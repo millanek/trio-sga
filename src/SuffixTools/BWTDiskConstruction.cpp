@@ -414,7 +414,7 @@ void computeGapArray(SeqReader* pReader, size_t n, const BWT* pBWT, bool doRever
         }
     
         numProcessed = 
-           SequenceProcessFramework::processSequencesParallel<SequenceWorkItem,
+           SequenceProcessFramework::processSequencesParallelOpenMP<SequenceWorkItem,
                                                               RankResult, 
                                                               RankProcess, 
                                                               RankPostProcess>(*pReader, rankProcVec, &postProcessor, n);

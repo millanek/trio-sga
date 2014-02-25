@@ -8,6 +8,7 @@
 // that match a database of primer sequences
 //
 #include "PrimerScreen.h"
+#include "Util.h"
 
 // Hardcoded primer sequences that we wish to filter against
 
@@ -16,28 +17,38 @@
 // supplemental info. We do not use the whole primer sequences.
 #define ILLUMINA_SANGER_PCR_FREE_A "AATGATACGGCGACCACCGAGATCTACA"
 #define ILLUMINA_SANGER_PCR_FREE_B "GATCGGAAGAGCGGTTCAGCAGGAATGC"
+#define ILLUMINA_SANGER_PE_1 "GATCGGAAGAGCGGTTCAGCAGGAATGCCGAG"
+#define ILLUMINA_SANGER_PE_2 "ACACTCTTTCCCTACACGACGCTCTTCCGATCT"
 
 PrimerScreen::PrimerScreen()
 {
-    m_db.push_back(ILLUMINA_SANGER_PCR_FREE_A);
-    m_db.push_back(ILLUMINA_SANGER_PCR_FREE_B);
+   // m_db.push_back(ILLUMINA_SANGER_PCR_FREE_A);
+   // m_db.push_back(ILLUMINA_SANGER_PCR_FREE_B);
+    m_db.push_back(ILLUMINA_SANGER_PE_1);
+    m_db.push_back(reverseComplement(ILLUMINA_SANGER_PE_2));
 }
+
 
 // Check seq against the primer database
 bool PrimerScreen::containsPrimer(const std::string& seq)
 {
+    
     static PrimerScreen screener; // initializes singleton object if necessary
     
-    // For now we only check if the first 14
-    // bases of seq is a perfect match to any sequence in the db
-    // This is sufficient to get rid of the vast majority of the primer
-    // contamination
-    const size_t check_size = 14;
-    std::string check = seq.substr(0, check_size);
-    for(size_t i = 0; i < screener.m_db.size(); ++i)
-    {
-        if(screener.m_db[i].find(check) != std::string::npos)
+    // For now we only check if any 21 mer of seq is a perfect match to any sequence in the db
+    // This is sufficient to get rid of the vast majority of the primer contamination
+    const size_t check_size = 21;
+    int n = seq.size();
+    int nk = n - check_size + 1;
+    
+    for(int i = 0; i < nk; ++i) {
+        std::string check = seq.substr(i, check_size);
+    
+        for(size_t i = 0; i < screener.m_db.size(); ++i)
+        {
+            if(screener.m_db[i].find(check) != std::string::npos)
             return true;
-    }
+        }
+    }    
     return false;
 }

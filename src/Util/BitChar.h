@@ -20,7 +20,7 @@ struct BitChar
         // Returns true if the update was successfully performed. This is the only thread-safe way to update the BitChar
         bool updateCAS(unsigned char idx, bool oldValue, bool newValue);
 
-        // set the bit at idx to the value u
+        // set the bit at idx to the value v
         void set(unsigned char idx, bool v);
 
         // returns true if bit at idx is set

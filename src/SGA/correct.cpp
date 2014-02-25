@@ -212,7 +212,7 @@ int correctMain(int argc, char** argv)
             processorVector.push_back(pProcessor);
         }
         
-        SequenceProcessFramework::processSequencesParallel<SequenceWorkItem,
+        SequenceProcessFramework::processSequencesParallelOpenMP<SequenceWorkItem,
                                                            ErrorCorrectResult, 
                                                            ErrorCorrectProcess, 
                                                            ErrorCorrectPostProcess>(opt::readsFile, processorVector, &postProcessor);
@@ -244,9 +244,6 @@ int correctMain(int argc, char** argv)
     if(pDiscardWriter != NULL)
         delete pDiscardWriter;
 
-    if(opt::numThreads > 1)
-        pthread_exit(NULL);
-
     return 0;
 }
 
@@ -255,7 +252,7 @@ int learnKmerParameters(const BWT* pBWT)
 {
     std::cout << "Learning kmer parameters\n";
     srand(time(0));
-    size_t n_samples = 10000;
+    size_t n_samples = 100000;
 
     //
     KmerDistribution kmerDistribution;

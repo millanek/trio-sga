@@ -36,4 +36,7 @@ libalgorithm_a_SOURCES = \
         MetAssembleProcess.h MetAssembleProcess.cpp \
         MetagenomeBuilder.h MetagenomeBuilder.cpp \
         VariationBuilderCommon.h VariationBuilderCommon.cpp \
-        KmerOverlaps.h KmerOverlaps.cpp
+        KmerOverlaps.h KmerOverlaps.cpp \
+        TrioCorrectProcess.h TrioCorrectProcess.cpp \
+        RemovePCRDuplicates.h RemovePCRDuplicates.cpp
+        
