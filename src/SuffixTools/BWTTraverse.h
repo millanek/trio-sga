@@ -17,7 +17,7 @@ struct TraverseElem
 {
     // The current index is set to 0 and we iterate forward until we find the first valid (non-zero) entry
     // This skips elem 0 which is the $ 
-    TraverseElem(const BWTInterval& i, AlphaCount ac) : base_range(i), desc(ac), currIdx(0) { }
+    TraverseElem(const BWTInterval& i, AlphaCount64 ac) : base_range(i), desc(ac), currIdx(0) { }
 
     // Return true if the current position is valid
     bool isValid() const
@@ -50,7 +50,7 @@ struct TraverseElem
     BWTInterval base_range;
 
     // The counts of each base {A,C,G,T} that are left-extensions of this range
-    AlphaCount desc;
+    AlphaCount64 desc;
 
     // The index of the current base being processed
     int currIdx;

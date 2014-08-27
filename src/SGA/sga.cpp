@@ -41,6 +41,7 @@
 #include "variant-detectability.h"
 #include "rewrite-evidence-bam.h"
 #include "PCR-pair-removal.h"
+#include "fm-mergeTrio.h"
 
 #define PROGRAM_BIN "sga"
 #define AUTHOR "Jared Simpson"
@@ -64,6 +65,7 @@ static const char *SGA_USAGE_MESSAGE =
 "           correct               correct sequencing errors in a set of reads\n"
 "           correct-trio          correct sequencing errors using information from trio sequencing\n"
 "           fm-merge              merge unambiguously overlapped sequences using the FM-index\n"
+"           fm-merge-trio         merge unambiguously overlapped sequences using the FM-index and trio data\n"
 "           overlap               compute overlaps between reads\n"
 "           assemble              generate contigs from an assembly graph\n"
 "           oview                 view overlap alignments\n"
@@ -92,6 +94,7 @@ static const char *SGA_USAGE_MESSAGE =
 
 int main(int argc, char** argv)
 {
+    
     if(argc <= 1)
     {
         std::cout << SGA_USAGE_MESSAGE;
@@ -125,6 +128,8 @@ int main(int argc, char** argv)
             rmdupMain(argc - 1, argv + 1);
         else if(command == "fm-merge")
             FMMergeMain(argc - 1, argv + 1);
+        else if(command == "fm-merge-trio")
+            FMMergeTrioMain(argc - 1, argv + 1);
         else if(command == "overlap")
             overlapMain(argc - 1, argv + 1);
         else if(command == "correct")

@@ -103,7 +103,7 @@ public:
     ~TrioCorrectProcess();
     TrioCorrectProcess(const TrioCorrectParameters params);
     
-    TrioCorrectResult process(const SequenceWorkItem& ite  m);
+    TrioCorrectResult process(const SequenceWorkItem& item);
     TrioCorrectPairResult process(const SequenceWorkItemPair& workItemPair);
     
     TrioCorrectResult kmerCorrection(const SequenceWorkItem& item, KmerCaches& kmerCaches, ParentCorrectionStatus& parentCorrectionStatus);

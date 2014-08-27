@@ -139,6 +139,15 @@ struct OverlapBlock
     {
         return a.ranges.interval[0].lower < b.ranges.interval[0].lower;    
     }
+    
+    // Equality operator, compare all coordinates
+    friend bool operator==(const OverlapBlock& a, const OverlapBlock& b)
+    {
+        return a.ranges.interval[0].lower == b.ranges.interval[0].lower;
+        return a.ranges.interval[1].lower == b.ranges.interval[1].lower;
+        return a.ranges.interval[0].upper == b.ranges.interval[0].upper;
+        return a.ranges.interval[1].upper == b.ranges.interval[1].upper;
+    }
 
     static bool sortSizeDescending(const OverlapBlock& ob1, const OverlapBlock& ob2)
     {

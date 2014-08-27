@@ -158,7 +158,7 @@ static inline void ld_set(longdna_t *h, int64_t x, int c)
 	h->a[k][l>>5] |= (uint64_t)(c&3)<<((l&31)<<1); // NB: we cannot set the same position multiple times
 }
 
-inline int ld_get(longdna_t *h, int64_t x)
+static inline int ld_get(longdna_t *h, int64_t x)
 {
 	return h->a[x>>LD_SHIFT][(x&LD_MASK)>>5]>>((x&31)<<1)&3;
 }

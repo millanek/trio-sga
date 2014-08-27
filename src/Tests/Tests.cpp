@@ -27,8 +27,8 @@ int main(int argc, char** argv)
     for(size_t i = 0; i < pBWT->getBWLen(); ++i)
     {
     
-        AlphaCount bAC = pBWT->getFullOcc(i);
-        AlphaCount rAC = pRLBWT->getFullOcc(i);
+        AlphaCount64 bAC = pBWT->getFullOcc(i);
+        AlphaCount64 rAC = pRLBWT->getFullOcc(i);
 
         //std::cout << "Test: RLBWT[" << i << "] = " << rAC << " BWT= " << bAC << "\n";
 

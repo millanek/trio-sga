@@ -38,5 +38,6 @@ libalgorithm_a_SOURCES = \
         VariationBuilderCommon.h VariationBuilderCommon.cpp \
         KmerOverlaps.h KmerOverlaps.cpp \
         TrioCorrectProcess.h TrioCorrectProcess.cpp \
-        RemovePCRDuplicates.h RemovePCRDuplicates.cpp
+        RemovePCRDuplicates.h RemovePCRDuplicates.cpp \
+        FMMergeTrioProcess.h FMMergeTrioProcess.cpp
         

@@ -202,6 +202,7 @@ FMMergeResult FMMergeProcess::process(const SequenceWorkItem& item)
     return result;
 }
 
+
 // Check if the candidate node can be merged with the node it is linked to. Returns true if so
 bool FMMergeProcess::checkCandidate(const FMMergeCandidate& candidate, const OverlapBlockList* pBlockList) const
 {

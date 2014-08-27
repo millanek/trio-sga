@@ -61,4 +61,5 @@ sga_SOURCES = sga.cpp \
               correct_trio.h correct_trio.cpp \
               sample-reads.h sample-reads.cpp \
               PCR-pair-removal.h PCR-pair-removal.cpp \
+              fm-mergeTrio.h fm-mergeTrio.cpp \
               SGACommon.h 

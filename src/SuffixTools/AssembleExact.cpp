@@ -132,7 +132,7 @@ void AssembleExact::markInitialIdentical(REVec* pREVec, const BWT* pBWT, const B
 
         bool contained = false;    
         // Determine the spectrum of extensions off the right hand size of the sequence
-        AlphaCount ac = pRevBWT->getOccDiff(ranges.interval[1].lower - 1, ranges.interval[1].upper);
+        AlphaCount8 ac = pRevBWT->getOccDiff(ranges.interval[1].lower - 1, ranges.interval[1].upper);
 
         // If there is any extension of a DNA character from the full length sequence for this entry
         // it must be contained in some other sequence

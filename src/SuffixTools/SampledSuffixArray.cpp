@@ -15,7 +15,7 @@
 #include "config.h"
 
 #if HAVE_OPENMP
-#include <omp.h>
+//#include <omp.h>
 #endif
 
 static const uint32_t SSA_MAGIC_NUMBER = 12412;
@@ -165,7 +165,7 @@ void SampledSuffixArray::buildLexicoIndex(const BWT* pBWT, int num_threads)
     (void)num_threads;
     // Parallelize this computaiton using openmp, if the compiler supports it
 #if HAVE_OPENMP
-    omp_set_num_threads(num_threads);
+//    omp_set_num_threads(num_threads);
     #pragma omp parallel for
 #endif
     for(int64_t read_idx = 0; read_idx < numStrings; ++read_idx)

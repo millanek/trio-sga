@@ -71,7 +71,7 @@ AC_ARG_WITH(sparsehash, AS_HELP_STRING([--with-sparsehash=PATH],
 	[specify directory containing the google sparsehash headers http://code.google.com/p/google-sparsehash/)]))
 
 if test "$with_sparsehash" -a -d "$with_sparsehash"; then
-    sparsehash_include="-I$with_sparsehash/include"
+    sparsehash_include="-I$with_sparsehash"
 fi
 
 # Warn that multithreading is not available on macosx, since it does not implement unnamed semaphores
@@ -84,7 +84,7 @@ else
 fi
 
 # Set compiler flags.
-AC_SUBST(AM_CXXFLAGS, "-Wall -Wextra -Werror")
+AC_SUBST(AM_CXXFLAGS, "-Wall -Wextra")
 AC_SUBST(CXXFLAGS, "-O3")
 AC_SUBST(CFLAGS, "-O3")
 AC_SUBST(CPPFLAGS, "$CPPFLAGS $openmp_cppflags $sparsehash_include $bamtools_include")
