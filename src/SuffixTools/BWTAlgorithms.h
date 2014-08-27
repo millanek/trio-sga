@@ -20,6 +20,17 @@
 #define LEFT_INT_IDX 0
 #define RIGHT_INT_IDX 1
 
+// structures
+
+// A (partial) prefix of a string contained in the BWT
+// and its lexicographic rank
+struct RankedPrefix
+{
+    size_t rank;
+    std::string prefix;
+};
+typedef std::vector<RankedPrefix> RankedPrefixVector;
+
 // functions
 namespace BWTAlgorithms
 {
@@ -41,6 +52,9 @@ BWTIntervalPair findIntervalPairWithCache(const BWT* pBWT,
 size_t countSequenceOccurrences(const std::string& w, const BWT* pBWT);
 size_t countSequenceOccurrencesWithCache(const std::string& w, const BWT* pBWT, const BWTIntervalCache* pIntervalCache);
 size_t countSequenceOccurrences(const std::string& w, const BWTIndexSet& indices);
+
+// Count the occurrences of w, not including the reverse complement
+size_t countSequenceOccurrencesSingleStrand(const std::string& w, const BWTIndexSet& indices);
 
 // Update the given interval using backwards search
 // If the interval corrsponds to string S, it will be updated 
@@ -154,14 +168,29 @@ AlphaCount64 calculateDeBruijnExtensionsSingleIndex(const std::string str,
                                                     EdgeDir direction,
                                                     const BWTIntervalCache* pFwdCache = NULL);
 
-// Extract the string at idx from the BWT
+// Extract the complete string starting at idx in the BWT
 std::string extractString(const BWT* pBWT, size_t idx);
+
+// Extract the next len bases of the string starting at idx
+std::string extractString(const BWT* pBWT, size_t idx, size_t len);
 
 // Extract the substring from start, start+length of the sequence starting at position idx
 std::string extractSubstring(const BWT* pBWT, uint64_t idx, size_t start, size_t length = std::string::npos);
 
+// Extract all prefixes of the suffixes for the given interval, along
+// with their lexicographic rank.
+RankedPrefixVector extractRankedPrefixes(const BWT* pBWT, BWTInterval interval);
+
+// Extract symbols from the starting index of the BWT until the index lies
+// within the given interval. If the extraction hits the start of a string
+// without finding a prefix, the empty string is returned.
+std::string extractUntilInterval(const BWT* pBWT, int64_t start, const BWTInterval& interval);
+
 // Returns a randomly chosen string from the BWT
 std::string sampleRandomString(const BWT* pBWT);
+
+// Returns a randomly chosen substring from the BWT 
+std::string sampleRandomSubstring(const BWT* pBWT, size_t len);
 
 };
 

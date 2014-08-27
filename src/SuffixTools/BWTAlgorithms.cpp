@@ -38,10 +38,17 @@ BWTInterval BWTAlgorithms::findIntervalWithCache(const BWT* pBWT, const BWTInter
     size_t cacheLen = pIntervalCache->getCachedLength();
     if(w.size() < cacheLen)
         return findInterval(pBWT, w);
-
+    
     // Compute the interval using the cache for the last k bases
     int len = w.size();
     int j = len - cacheLen;
+
+    // Check whether the input string has a '$' in it.
+    // We don't cache these strings so if it does
+    // we have to do a direct lookup
+    if(index(w.c_str() + j, '$') != NULL)
+        return findInterval(pBWT, w);
+
     BWTInterval interval = pIntervalCache->lookup(w.c_str() + j);
     j -= 1;
     for(;j >= 0; --j)
@@ -155,6 +162,16 @@ size_t BWTAlgorithms::countSequenceOccurrences(const std::string& w, const BWTIn
     else
         return countSequenceOccurrences(w, indices.pBWT);
 }
+
+size_t BWTAlgorithms::countSequenceOccurrencesSingleStrand(const std::string& w, const BWTIndexSet& indices)
+{
+    assert(indices.pBWT != NULL);
+    assert(indices.pCache != NULL);
+
+    BWTInterval interval = findIntervalWithCache(indices.pBWT, indices.pCache, w);
+    return interval.isValid() ? interval.size() : 0;
+}
+
 
 // Return the count of all the possible one base extensions of the string w.
 // This returns the number of times the suffix w[i, l]A, w[i, l]C, etc 
@@ -367,6 +384,23 @@ std::string BWTAlgorithms::sampleRandomString(const BWT* pBWT)
     return extractString(pBWT, idx);
 }
 
+// Return a random string from the BWT
+std::string BWTAlgorithms::sampleRandomSubstring(const BWT* pBWT, size_t len)
+{
+    assert(RAND_MAX > 0x7FFF);
+    size_t tries = 1000;
+    while(1 && tries-- > 0)
+    {
+        size_t n = pBWT->getBWLen();
+        size_t idx = rand() % n;
+        std::string s = extractString(pBWT, idx, len);
+        if(s.size() == len)
+            return s;
+    }
+    return "";
+}
+
+
 // Return the string from the BWT at idx
 std::string BWTAlgorithms::extractString(const BWT* pBWT, size_t idx)
 {
@@ -397,3 +431,76 @@ std::string BWTAlgorithms::extractSubstring(const BWT* pBWT, uint64_t idx, size_
     return s.substr(start, length);
 }
 
+// Return the next len bases of the string starting at index idx of the BWT
+std::string BWTAlgorithms::extractString(const BWT* pBWT, size_t idx, size_t len)
+{
+    std::string out;
+    BWTInterval interval(idx, idx);
+    while(out.length() < len)
+    {
+        assert(interval.isValid());
+        char b = pBWT->getChar(interval.lower);
+        if(b == '$')
+            break;
+        else
+            out.push_back(b);
+        updateInterval(interval, b, pBWT);
+    } 
+    return reverse(out);
+}
+
+
+// Recursive traversal to extract all the strings needed for the above function
+void _extractRankedPrefixes(const BWT* pBWT, BWTInterval interval, const std::string& curr, RankedPrefixVector* pOutput)
+{
+    AlphaCount64 extensions = BWTAlgorithms::getExtCount(interval, pBWT);
+
+    for(size_t i = 0; i < 4; ++i)
+    {
+        char b = "ACGT"[i];
+
+        if(extensions.get(b) > 0)
+        {
+            BWTInterval ni = interval;
+            BWTAlgorithms::updateInterval(ni, b, pBWT);
+            _extractRankedPrefixes(pBWT, ni, curr + b, pOutput);
+        }
+
+    }
+
+    // If we have extended the prefix as far as possible, stop
+    BWTAlgorithms::updateInterval(interval, '$', pBWT);
+    for(int64_t i = interval.lower; i <= interval.upper; ++i)
+    {
+        // backwards search gives a reversed prefix, fix it
+        RankedPrefix rp = { (size_t)i, reverse(curr) };
+        pOutput->push_back(rp);
+    }
+}
+
+// Extract all strings found from a backwards search starting at the given interval
+RankedPrefixVector BWTAlgorithms::extractRankedPrefixes(const BWT* pBWT, BWTInterval interval)
+{
+    std::string curr;
+    RankedPrefixVector output;
+    output.reserve(interval.size());
+    _extractRankedPrefixes(pBWT, interval, curr, &output);
+    return output;
+}
+
+std::string BWTAlgorithms::extractUntilInterval(const BWT* pBWT, int64_t start, const BWTInterval& check)
+{
+    std::string out;
+    BWTInterval interval(start, start);
+    while(interval.lower < check.lower || interval.lower > check.upper)
+    {
+        assert(interval.isValid());
+        char b = pBWT->getChar(interval.lower);
+        if(b == '$')
+            return "";
+        else
+            out.push_back(b);
+        updateInterval(interval, b, pBWT);
+    } 
+    return reverse(out);        
+}

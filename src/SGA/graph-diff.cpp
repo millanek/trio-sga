@@ -24,12 +24,14 @@
 #include "DindelRealignWindow.h"
 #include "QualityTable.h"
 #include "BloomFilter.h"
+#include "Verbosity.h"
 #include "graph-diff.h"
 
 // Functions
 void runVCFTester(GraphCompareParameters& parameters);
 void runGraphDiff(GraphCompareParameters& parameters);
 void runDebug(GraphCompareParameters& parameters);
+void runInteractive(GraphCompareParameters& parameters);
 void preloadBloomFilter(const ReadTable* pReadTable, size_t k, BloomFilter* pBloomFilter);
 
 // Defines to clarify awful template function calls
@@ -75,7 +77,7 @@ static const char *GRAPH_DIFF_USAGE_MESSAGE =
 "Algorithm options:\n"
 "      -k, --kmer=K                     use K-mers to discover variants\n"
 "      -x, --min-discovery-count=T      require a variant k-mer to be seen at least T times\n"
-"          --debruijn                   use the de Bruijn graph assembly algorithm (default: string graph)\n"
+"      -a, --algorithm=STR              select the assembly algorithm to use from: debruijn, string\n"
 "      -m, --min-overlap=N              require at least N bp overlap when assembling using a string graph\n" 
 "          --min-dbg-count=T            only use k-mers seen T times when assembling using a de Bruijn graph\n"
 "\nReport bugs to " PACKAGE_BUGREPORT "\n\n";
@@ -97,10 +99,11 @@ namespace opt
     static int minDBGCount = 2;
 
     // Calling modes
-    static bool deBruijnMode = false;
+    static GraphCompareAlgorithm algorithm = GCA_DEBRUIJN_GRAPH;
     static bool lowCoverage = false;
     static bool referenceMode = false;
     static bool useQualityScores = false;
+    static bool interactiveMode = false;
 
     // I/O
     static std::string outPrefix = "sgavariants";
@@ -112,7 +115,7 @@ namespace opt
     static std::string inputVCFFile;
 }
 
-static const char* shortopts = "b:r:o:k:d:t:x:y:p:m:v";
+static const char* shortopts = "b:r:o:k:d:t:x:y:p:m:a:v";
 
 enum { OPT_HELP = 1, 
        OPT_VERSION, 
@@ -121,11 +124,11 @@ enum { OPT_HELP = 1,
        OPT_DEBUG, 
        OPT_MIN_DBG_COUNT, 
        OPT_INDEX, 
-       OPT_DEBRUIJN, 
        OPT_LOWCOVERAGE, 
        OPT_QUALSCORES,
        OPT_BLOOM_GENOME,
-       OPT_PRECACHE_REFERENCE };
+       OPT_PRECACHE_REFERENCE,
+       OPT_INTERACTIVE };
 
 static const struct option longopts[] = {
     { "verbose",              no_argument,       NULL, 'v' },
@@ -137,9 +140,10 @@ static const struct option longopts[] = {
     { "sample-rate",          required_argument, NULL, 'd' },
     { "prefix",               required_argument, NULL, 'p' },
     { "min-overlap",          required_argument, NULL, 'm' },
-    { "debruijn",             no_argument,       NULL, OPT_DEBRUIJN },
+    { "algorithm",            required_argument, NULL, 'a' },
     { "low-coverage",         no_argument,       NULL, OPT_LOWCOVERAGE },
     { "use-quality-scores",   no_argument,       NULL, OPT_QUALSCORES},
+    { "interactive",          no_argument,       NULL, OPT_INTERACTIVE},
     { "index",                required_argument, NULL, OPT_INDEX },
     { "min-dbg-count",        required_argument, NULL, OPT_MIN_DBG_COUNT },
     { "debug",                required_argument, NULL, OPT_DEBUG },
@@ -158,6 +162,9 @@ static const struct option longopts[] = {
 int graphDiffMain(int argc, char** argv)
 {
     parseGraphDiffOptions(argc, argv);
+
+    // Set the verbosity level for the entire package
+    Verbosity::Instance().setPrintLevel(opt::verbose);
 
     if(opt::lowCoverage)
         std::cout << "Initializing population calling\n";
@@ -213,7 +220,7 @@ int graphDiffMain(int argc, char** argv)
     if(!opt::referenceMode)
     {
         std::cout << "Loading base read index index... " << std::flush;
-        std::string basePrefix = stripExtension(opt::baseFile);
+        std::string basePrefix = stripGzippedExtension(opt::baseFile);
         baseIndex.pBWT = new BWT(basePrefix + BWT_EXT, opt::sampleRate);
         baseIndex.pSSA = new SampledSuffixArray(basePrefix + SAI_EXT, SSA_FT_SAI);
         baseIndex.pCache = new BWTIntervalCache(opt::cacheLength, baseIndex.pBWT);
@@ -240,13 +247,11 @@ int graphDiffMain(int argc, char** argv)
     sharedParameters.referenceIndex = referenceIndex;
     sharedParameters.pRefTable = &refTable;
     sharedParameters.bReferenceMode = opt::referenceMode;
-
-    sharedParameters.algorithm = opt::deBruijnMode ? GCA_DEBRUIJN_GRAPH : GCA_STRING_GRAPH;
+    sharedParameters.algorithm = opt::algorithm;
     sharedParameters.kmer = opt::kmer;
     sharedParameters.minDiscoveryCount = opt::minDiscoveryCount;
     sharedParameters.minDBGCount = opt::minDBGCount;
     sharedParameters.minOverlap = opt::minOverlap;
-    sharedParameters.verbose = opt::verbose;
     sharedParameters.maxHaplotypes = 5;
     sharedParameters.maxReads = 10000;
     sharedParameters.maxExtractionIntervalSize = 500;
@@ -264,6 +269,10 @@ int graphDiffMain(int argc, char** argv)
     if(!opt::debugFile.empty())
     {
         runDebug(sharedParameters);
+    }
+    else if(opt::interactiveMode)
+    {
+        runInteractive(sharedParameters);
     }
     else
     {
@@ -315,7 +324,7 @@ void runGraphDiff(GraphCompareParameters& parameters)
     size_t occupancy_factor = 20;
     size_t bloom_size = occupancy_factor * expected_bits;
 
-    BloomFilter* pBloomFilter = new BloomFilter(bloom_size, 3);
+    BloomFilter* pBloomFilter = new BloomFilter(bloom_size, 5);
     parameters.pBloomFilter = pBloomFilter;
     preloadBloomFilter(parameters.pRefTable, parameters.kmer, pBloomFilter);
 
@@ -432,11 +441,54 @@ void runDebug(GraphCompareParameters& parameters)
     graphCompare.testKmersFromFile(opt::debugFile);
 }
 
+// Run interactively, parse a sequence from cin, process it then wait
+void runInteractive(GraphCompareParameters& parameters)
+{
+    // Initialize a bloom filter
+    size_t expected_bits = 0;
+    if(opt::bloomGenomeSize == -1)
+    {
+        // Calculate the expected bits using the number of bases in the reference
+        for(size_t i = 0; i < parameters.pRefTable->getCount(); ++i)
+            expected_bits += parameters.pRefTable->getReadLength(i);
+    }
+    else 
+    {
+        expected_bits = opt::bloomGenomeSize;
+    }
+
+    size_t occupancy_factor = 20;
+    size_t bloom_size = occupancy_factor * expected_bits;
+
+    BloomFilter* pBloomFilter = new BloomFilter(bloom_size, 5);
+    parameters.pBloomFilter = pBloomFilter;
+    preloadBloomFilter(parameters.pRefTable, parameters.kmer, pBloomFilter);
+    
+    GraphCompare graphCompare(parameters); 
+    while(1) 
+    {
+        std::string sequence;
+        std::cout << "Input a sequence: ";
+        std::cin >> sequence;
+
+        if(sequence == "done")
+            break;
+        SequenceWorkItem item;
+        item.read.seq = sequence;
+        item.read.id = "input";
+
+        std::cout << "processing: " << sequence << "\n";
+
+        graphCompare.process(item);
+    }
+}
+
 // 
 // Handle command line arguments
 //
 void parseGraphDiffOptions(int argc, char** argv)
 {
+    std::string algorithmString;
     bool die = false;
     for (char c; (c = getopt_long(argc, argv, shortopts, longopts, NULL)) != -1;) 
     {
@@ -451,10 +503,10 @@ void parseGraphDiffOptions(int argc, char** argv)
             case 'd': arg >> opt::sampleRate; break;
             case 'p': arg >> opt::outPrefix; break;
             case 'm': arg >> opt::minOverlap; break;
+            case 'a': arg >> algorithmString; break;
             case '?': die = true; break;
             case 'v': opt::verbose++; break;
             case OPT_REFERENCE: arg >> opt::referenceFile; break;
-            case OPT_DEBRUIJN: opt::deBruijnMode = true; break;
             case OPT_LOWCOVERAGE: opt::lowCoverage = true; break;
             case OPT_MIN_DBG_COUNT: arg >> opt::minDBGCount; break;
             case OPT_BLOOM_GENOME: arg >> opt::bloomGenomeSize; break;
@@ -463,6 +515,7 @@ void parseGraphDiffOptions(int argc, char** argv)
             case OPT_TESTVCF: arg >> opt::inputVCFFile; break;
             case OPT_INDEX: arg >> opt::indexPrefix; break;
             case OPT_QUALSCORES:  opt::useQualityScores = true; break;
+            case OPT_INTERACTIVE:  opt::interactiveMode = true; break;
             case OPT_HELP:
                 std::cout << GRAPH_DIFF_USAGE_MESSAGE;
                 exit(EXIT_SUCCESS);
@@ -493,6 +546,17 @@ void parseGraphDiffOptions(int argc, char** argv)
 
     if(opt::baseFile.empty())
         opt::referenceMode = true;
+
+    if(algorithmString == "paired") {
+        opt::algorithm = GCA_PAIRED_DEBRUIJN_GRAPH;
+    } else if(algorithmString == "debruijn") {
+        opt::algorithm = GCA_DEBRUIJN_GRAPH;
+    } else if(algorithmString == "string") {
+        opt::algorithm = GCA_STRING_GRAPH;
+    } else {
+        std::cerr << "Error: unrecognized algorithm string: " << algorithmString << "\n";
+        die = true;
+    }
 
     if(opt::referenceFile.empty())
     {

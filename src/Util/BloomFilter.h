@@ -12,6 +12,8 @@
 #include <limits>
 #include "BitVector.h"
 
+//#define TRACK_OCCUPANCY 1
+
 class BloomFilter
 {
     public:
@@ -53,12 +55,19 @@ class BloomFilter
         */
         void printMemory() const;
 
+        /**
+        * @brief Count how many bits are set and print to stdout
+        */
+        void printOccupancy() const;
+
     private:
         BitVector m_bitvector;
         std::vector<uint32_t> m_hashes;
         size_t m_width;
         size_t m_occupancy;
+#if TRACK_OCCUPANCY
         mutable size_t m_test_counter;
+#endif
 };
 
 #endif

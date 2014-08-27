@@ -262,12 +262,12 @@ size_t processWorkParallelOpenMP(Generator& generator,
                                  PostProcessor* pPostProcessor, 
                                  size_t n = -1)
 {
+#if HAVE_OPENMP
     Timer timer("SequenceProcess", true);
 
     // Helpful typedefs
     typedef std::vector<Input> InputVector;
     typedef std::vector<Output> OutputVector;
-    typedef std::vector<sem_t*> SemaphorePtrVector;
 
     InputVector inputBuffer;
     OutputVector outputBuffer;
@@ -298,7 +298,7 @@ size_t processWorkParallelOpenMP(Generator& generator,
             outputBuffer.resize(inputBuffer.size());
 
             //
-            #pragma omp parallel for schedule(dynamic, 64)
+            #pragma omp parallel for schedule(dynamic, 256)
             for(int i = 0; i < (int)inputBuffer.size(); ++i)
             {
                 // Dispatch the work to a processor and write the output to the output buffer
@@ -328,6 +328,14 @@ size_t processWorkParallelOpenMP(Generator& generator,
     printf("[sga::process] processed %zu sequences in %lfs (%lf sequences/s)\n", 
             generator.getNumConsumed(), proc_time_secs, (double)generator.getNumConsumed() / proc_time_secs);
     return generator.getNumConsumed();
+#else // OPENMP
+    (void)generator;
+    (void)processPtrVector;
+    (void)pPostProcessor;
+    (void)n;
+    printf("Error: threading enabled but you did not compile with OpenMP\n");
+    exit(EXIT_FAILURE);
+#endif
 }
 
 // Wrapper function for operating over n elements of from a SeqReader

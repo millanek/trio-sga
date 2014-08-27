@@ -12,6 +12,7 @@
 #include "HapgenUtil.h"
 #include "VCFUtil.h"
 #include "Profiler.h"
+#include "Verbosity.h"
 #include "overlapper.h"
 #include "multiple_alignment.h"
 
@@ -40,9 +41,6 @@ DindelReturnCode DindelUtil::runDindelPairMatePair(const std::string& id,
     HapgenAlignmentVector candidateAlignments;
 
     // Choose the kmer size for alignment
-    //size_t MAX_ALIGN_KMER = 51;
-    //size_t ALIGN_KMER_OFFSET = 5;
-    //size_t align_kmer = std::min(MAX_ALIGN_KMER, parameters.kmer - ALIGN_KMER_OFFSET);
     size_t align_kmer = 31;
     for(size_t i = 0; i < inHaplotypes.size(); ++i)
     {
@@ -58,7 +56,18 @@ DindelReturnCode DindelUtil::runDindelPairMatePair(const std::string& id,
    
     // Remove duplicate or bad alignment pairs
     HapgenUtil::coalesceAlignments(candidateAlignments);
+
+    if(Verbosity::Instance().getPrintLevel() > 3)
+        printf("runDindel -- %zu candidate alignments found\n", candidateAlignments.size());
     
+    // Check if this group of haplotypes is a SNP-only event
+    bool has_complex_variant = false;
+    for(size_t i = 0; i < candidateAlignments.size(); ++i)
+    {
+        if(candidateAlignments[i].numEvents > 0 && !candidateAlignments[i].isSNP)
+            has_complex_variant = true;
+    }
+
     size_t MAX_ALIGNMENTS = 10;
     if(candidateAlignments.size() > MAX_ALIGNMENTS)
         return DRC_AMBIGUOUS_ALIGNMENT;
@@ -83,6 +92,9 @@ DindelReturnCode DindelUtil::runDindelPairMatePair(const std::string& id,
                                            candidateHaplotypes);
     
     }
+
+    if(Verbosity::Instance().getPrintLevel() > 3)
+        printf("runDindel -- made %zu flanking haplotypes\n", candidateHaplotypes.size());
 
     // Normal reads
     SeqRecordVector normalReads;
@@ -135,6 +147,9 @@ DindelReturnCode DindelUtil::runDindelPairMatePair(const std::string& id,
     size_t normal_reads = normalReads.size() + normalRCReads.size();
     size_t variant_reads = variantReads.size() + variantRCReads.size();
     size_t total_reads = normal_reads + variant_reads;
+    
+    if(Verbosity::Instance().getPrintLevel() > 3)
+        printf("Extracted %zu normal reads, %zu variant reads\n", normal_reads, variant_reads);
 
     if(total_reads > parameters.maxReads)
         return DRC_OVER_DEPTH;
@@ -195,14 +210,6 @@ DindelReturnCode DindelUtil::runDindelPairMatePair(const std::string& id,
     for(std::set<DindelReferenceMapping>::iterator it = refMappings.begin(); it != refMappings.end(); it++) 
         it->referenceAlignmentScore = 1000;
     
-    /*
-    std::cout << "REFERENCE MAPPINGS: \n";
-    int c = 0;
-    for(std::set<DindelReferenceMapping>::const_iterator it = refMappings.begin(); it != refMappings.end(); it++, c++) {
-        std::cout << c << " " << it->refName << " start: " << it->refStart << " end: " << it->refStart + it->refSeq.size()-1 << " score: " << it->referenceAlignmentScore << "\n";
-    }
-    */
-
     // make flankingHaplotypes unique
     std::set< std::string > setFlanking(flankingHaplotypes.begin(), flankingHaplotypes.end());
 
@@ -253,16 +260,13 @@ DindelReturnCode DindelUtil::runDindelPairMatePair(const std::string& id,
             dReads.push_back(convertToDindelRead(indices, rcReads[j], false));
         }
 
-        //std::cout << "*******MULTIPLE ALIGNMENT of reads and haplotypes\n";
-        //doMultipleReadHaplotypeAlignment(dReads, flankingHaplotypes);
-
         pThisResult = new DindelRealignWindowResult();
 
         std::stringstream out_ss;
         try
         {
             DindelRealignWindow dRealignWindow(&dWindow, dReads, parameters.dindelRealignParameters);
-            dRealignWindow.run("hmm", vcfCollections[i], pReadAlignments, id, pThisResult, pPreviousResult);
+            dRealignWindow.run("hmm", vcfCollections[i], pReadAlignments, id, pThisResult, pPreviousResult, parameters.pRefTable);
         }
         catch(std::string e)
         {
@@ -283,17 +287,6 @@ DindelReturnCode DindelUtil::runDindelPairMatePair(const std::string& id,
             curr_out << vcfCollections[i].records[j] << "\n";
     }
 
-    // Copy raw VCFRecords to stdout
-    if(parameters.verbose > 0)
-    {
-        for(size_t i = 0; i <= 1; ++i)
-        {
-            std::cout << ((i==0)?"BASE:\t" : "VARI:\t");
-            for(size_t j = 0; j < vcfCollections[i].records.size(); ++j)
-                std::cout << vcfCollections[i].records[j] << "\n";
-        }
-    }
-    
     // Make comparative calls
     size_t VARIANT_IDX = 1;
     size_t BASE_IDX = 0;
@@ -302,7 +295,8 @@ DindelReturnCode DindelUtil::runDindelPairMatePair(const std::string& id,
     {
         bool not_called_in_base = true;
         if(has_base_calls)
-            not_called_in_base = vcfCollections[BASE_IDX].records[i].passStr == "NoCall";
+            not_called_in_base = vcfCollections[BASE_IDX].records[i].passStr == "NoCall" ||
+                                 vcfCollections[BASE_IDX].records[i].passStr == "NoSupp";
 
         bool called_in_variant = vcfCollections[VARIANT_IDX].records[i].passStr == "PASS";
         if(called_in_variant && not_called_in_base)
@@ -381,96 +375,6 @@ void DindelUtil::doMultipleReadHaplotypeAlignment(const std::vector<DindelRead> 
         }
         ma.print(100000);
     }
-}
-
-// Compute the best alignment of the haplotype collection to the reference
-DindelReturnCode DindelUtil::computeBestAlignment(const StringVector& inHaplotypes, 
-                                                  const SeqItemVector& variantMates,
-                                                  const SeqItemVector& variantRCMates,
-                                                  const GraphCompareParameters& parameters,
-                                                  HapgenAlignment& bestAlignment)
-{
-    size_t MAX_DEPTH = 2000;
-    if(variantMates.size() + variantRCMates.size() > MAX_DEPTH)
-        return DRC_OVER_DEPTH;
-
-    //
-    // Align the haplotypes to the reference genome to generate candidate alignments
-    //
-    HapgenAlignmentVector candidateAlignments;
-    for(size_t i = 0; i < inHaplotypes.size(); ++i)
-        HapgenUtil::alignHaplotypeToReferenceBWASW(inHaplotypes[i], parameters.referenceIndex, candidateAlignments);
-
-    // Remove duplicate or bad alignment pairs
-    HapgenUtil::coalesceAlignments(candidateAlignments);
-
-    if(candidateAlignments.empty())
-        return DRC_NO_ALIGNMENT;
-
-    //
-    // Score each candidate alignment against the mates of all the variant reads
-    //
-    int bestCandidate = -1;
-    double bestAverageScoreFrac = 0.0f;
-    double secondBest = 0.0f;
-    for(size_t i = 0; i < candidateAlignments.size(); ++i)
-    {
-        // Compute the average score of the reads' mates to the flanking sequence
-        StringVector referenceFlanking;
-        StringVector referenceHaplotypes;
-        HapgenUtil::makeFlankingHaplotypes(candidateAlignments[i], parameters.pRefTable, 
-                                           1000, inHaplotypes, referenceFlanking, referenceHaplotypes);
-
-        // If valid flanking haplotypes could not be made, skip this alignment
-        if(referenceFlanking.empty())
-            continue;
-
-        // Realign the mates
-        LocalAlignmentResultVector localAlignments = HapgenUtil::alignReadsLocally(referenceFlanking[0], variantMates);
-        LocalAlignmentResultVector localAlignmentsRC = HapgenUtil::alignReadsLocally(referenceFlanking[0], variantRCMates);
-
-        // Merge alignments
-        localAlignments.insert(localAlignments.end(), localAlignmentsRC.begin(), localAlignmentsRC.end());
-
-        double sum = 0.0f;
-        double count = 0.0f;
-
-        for(size_t j = 0; j < localAlignments.size(); ++j)
-        {
-            double max_score = localAlignments[j].queryEndIndex - localAlignments[j].queryStartIndex + 1;
-            double frac = (double)localAlignments[j].score / max_score;
-            //printf("Score: %d frac: %lf\n", localAlignments[j].score, frac);
-            sum += frac;
-            count += 1;
-        }
-
-        double score = sum / count;
-        if(score > bestAverageScoreFrac)
-        {
-            secondBest = bestAverageScoreFrac;
-            bestAverageScoreFrac = score;
-            bestCandidate = i;
-        }
-        else if(score > secondBest)
-        {
-            secondBest = score;
-        }
-
-        //printf("Alignment %zu mate-score: %lf\n", i, score);
-    }
-
-    if(bestCandidate == -1)
-        return DRC_NO_ALIGNMENT;
-
-    /*
-    if(bestAverageScoreFrac < 0.9f)
-        return DRC_POOR_ALIGNMENT;
-
-    if(bestAverageScoreFrac - secondBest < 0.05f)
-        return DRC_AMBIGUOUS_ALIGNMENT;
-    */
-    bestAlignment = candidateAlignments[bestCandidate];
-    return DRC_OK;
 }
 
 // Initialize an array of code counts

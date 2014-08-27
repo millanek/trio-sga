@@ -28,20 +28,18 @@
 #include "filterBAM.h"
 #include "cluster.h"
 #include "gen-ssa.h"
-#include "correct-long.h"
-#include "correct_trio.h"
-#include "sample-reads.h"
-#include "convert-beetl.h"
 #include "bwt2fa.h"
 #include "graph-diff.h"
-#include "hapgen.h"
-#include "var2vcf.h"
 #include "gapfill.h"
-#include "metagenome.h"
 #include "variant-detectability.h"
 #include "rewrite-evidence-bam.h"
 #include "PCR-pair-removal.h"
 #include "fm-mergeTrio.h"
+#include "preqc.h"
+#include "haplotype-filter.h"
+#include "graph-concordance.h"
+#include "somatic-variant-filters.h"
+#include "kmer-count.h"
 
 #define PROGRAM_BIN "sga"
 #define AUTHOR "Jared Simpson"
@@ -77,19 +75,21 @@ static const char *SGA_USAGE_MESSAGE =
 "           scaffold2fasta        convert the output of the scaffold subprogram into a fasta file\n"
 "           gapfill               fill intra-scaffold gaps\n"
 "\n\nVariant Calling Commands:\n"
-"           graph-diff            compare reads to find sequence variants\n"
-"           rewrite-evidence-bam  fill in sequence and quality information for a variant evidence BAM\n"
+"           graph-diff               compare reads to find sequence variants\n"
+"           graph-concordance        check called variants for representation in the assembly graph\n"
+"           rewrite-evidence-bam     fill in sequence and quality information for a variant evidence BAM\n"
+"           haplotype-filter         filter out low-quality haplotypes\n"
+"           somatic-variant-filters  filter out low-quality variants\n"
 "\n\nExperimental commands:\n"
+"           preqc                 perform pre-assembly quality checks on a set of reads\n"
 "           stats                 print summary statistics about a read set\n"
 "           filterBAM             filter out contaminating mate-pair data in a BAM file\n"
 "           cluster               find clusters of reads belonging to the same connected component in an assembly graph\n"
 "           metagenome            assemble contigs from metagenomics data\n"
 "           PCRpair-remove        remove duplicate read-pairs (same strand, same orientation)\n"  
 //"           correct-long    correct long reads\n"
+"           kmer-count            extract all kmers from a BWT file\n"
 //"           connect         resolve the complete sequence of a paired-end fragment\n"
-//"           var2vcf         convert aligned variant sequences found by graph-diff into a VCF file\n"
-//"           hapgen          generate candidate haplotypes from an assembly graph\n"
-//"           sample-reads          sample reads or read-pairs with a given probability\n"
 "\nReport bugs to " PACKAGE_BUGREPORT "\n\n";
 
 int main(int argc, char** argv)
@@ -156,32 +156,28 @@ int main(int argc, char** argv)
             clusterMain(argc - 1, argv + 1);
         else if(command == "gen-ssa")
             genSSAMain(argc - 1, argv + 1);
-        else if(command == "correct-long")
-            correctLongMain(argc - 1, argv + 1);
-        else if(command == "correct-trio")
-            correctTrioMain(argc - 1, argv + 1);
-        else if (command == "sample-reads") 
-            sampleReadsMain(argc -1, argv + 1);
-        else if(command == "convert-beetl")
-            convertBeetlMain(argc - 1, argv + 1);
         else if(command == "bwt2fa")
             bwt2faMain(argc - 1, argv + 1);
         else if(command == "graph-diff")
             graphDiffMain(argc - 1, argv + 1);
-        else if(command == "var2vcf")
-            var2vcfMain(argc - 1, argv + 1);
-        else if(command == "hapgen")
-            hapgenMain(argc - 1, argv + 1);
         else if(command == "gapfill")
             gapfillMain(argc - 1, argv + 1);
-        else if(command == "metagenome")
-            metagenomeMain(argc - 1, argv + 1);
         else if(command == "variant-detectability")
             variantDetectabilityMain(argc - 1, argv + 1);
         else if(command == "PCRpair-remove")
             PCRpairRemovalMain(argc - 1, argv + 1);
         else if(command == "rewrite-evidence-bam")
             rewriteEvidenceBAMMain(argc - 1, argv + 1);
+        else if(command == "preqc")
+            preQCMain(argc - 1, argv + 1);
+        else if(command == "haplotype-filter")
+            haplotypeFilterMain(argc - 1, argv + 1);
+        else if(command == "graph-concordance")
+            graphConcordanceMain(argc - 1, argv + 1);
+        else if(command == "somatic-variant-filters")
+            somaticVariantFiltersMain(argc - 1, argv + 1);
+        else if(command == "kmer-count")
+            kmerCountMain(argc - 1, argv + 1);
         else
         {
             std::cerr << "Unrecognized command: " << command << "\n";
