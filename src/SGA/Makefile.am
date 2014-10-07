@@ -62,4 +62,6 @@ sga_SOURCES = sga.cpp \
               sample-reads.h sample-reads.cpp \
               PCR-pair-removal.h PCR-pair-removal.cpp \
               fm-mergeTrio.h fm-mergeTrio.cpp \
+              contig-stats.h contig-stats.cpp \
+              depth.h depth.cpp \
               SGACommon.h 

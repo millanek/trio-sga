@@ -2439,9 +2439,11 @@ void DindelRealignWindow::addDiploidGenotypes(DindelRealignWindowResult& result,
        sampleToReads[sampleName].push_back(r);
    }
 
-
+<<<<<<< HEAD
+   typedef std::map<DindelVariant, std::unordered_map<int, int> > VariantToHaplotype;
+=======
    typedef std::map<DindelVariant, HashMap<int, int> > VariantToHaplotype;
-
+>>>>>>> 61e03c63d2d19e31cfdd1bf1cc70fbbb6a705a49
    VariantToHaplotype variantToHaplotype;
 
    for (int i=0;i<numHaps;i++)
@@ -2702,8 +2704,11 @@ void DindelRealignWindow::addCalledHaplotypeMatePairs(int hapIdx,
 
                 DindelRealignWindowResult::Inference & varInf = vit->second;
 
-
+<<<<<<< HEAD
+                std::unordered_map<std::string, int> libraries, readnames;
+=======
                 HashMap<std::string, int> libraries, readnames;
+>>>>>>> 61e03c63d2d19e31cfdd1bf1cc70fbbb6a705a49
                 varInf.haplotypeIndex.insert(hapIdx);
 
                 if (vars[x].getType()=="INDEL") indelAdded = true;
@@ -2854,8 +2859,11 @@ void DindelRealignWindow::addCalledHaplotypeSingleRead(int hapIdx,
 
             DindelRealignWindowResult::Inference & varInf = vit->second;
 
-
+<<<<<<< HEAD
+            std::unordered_map<std::string, int> libraries, readnames;
+=======
             HashMap<std::string, int> libraries, readnames;
+>>>>>>> 61e03c63d2d19e31cfdd1bf1cc70fbbb6a705a49
             varInf.haplotypeIndex.insert(hapIdx);
 
             if (vars[x].getType()=="INDEL") 

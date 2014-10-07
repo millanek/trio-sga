@@ -1,12 +1,12 @@
 
-#include <kmer-count.h>
+#include "kmer-count.h"
 #include <iostream>
 #include <stack>
 #include <memory>
 #include <getopt.h>
-#include <BWT.h>
-#include <BWTInterval.h>
-#include <BWTAlgorithms.h>
+#include "BWT.h"
+#include "BWTInterval.h"
+#include "BWTAlgorithms.h"
 
 //
 // Getopt

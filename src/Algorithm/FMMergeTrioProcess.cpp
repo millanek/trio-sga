@@ -12,15 +12,27 @@
 
 
 //
-FMMergeTrioProcess::FMMergeTrioProcess(const OverlapAlgorithm* pOverlapper, int minOverlap, BitVector* pMarkedReads, BWTIndexSet& motherIndices, BWTIndexSet& fatherIndices, ContributingParent contribParent) :
+FMMergeTrioProcess::FMMergeTrioProcess(const OverlapAlgorithm* pOverlapper, int minOverlap, BitVector* pMarkedReads, BWTIndexSet& motherIndices, BWTIndexSet& fatherIndices, ContributingParent contribParent, bool verbose, bool tryPhasing) :
 m_pOverlapper(pOverlapper),
 m_minOverlap(minOverlap),
 m_pMarkedReads(pMarkedReads),
 m_motherIndices(motherIndices),
 m_fatherIndices(fatherIndices),
-m_contribParent(contribParent)
+m_contribParent(contribParent),
+m_verbose(verbose),
+m_tryPhasing(tryPhasing)
 {
-    
+    // Create overlappper from the BWT of the contributing parent
+    if (m_contribParent == MATERNAL) {
+        m_pParentOverlapper = new OverlapAlgorithm(m_motherIndices.pBWT, m_motherIndices.pRBWT,0.0f, 0,0,true);
+    } else if (m_contribParent == PATERNAL) {
+        m_pParentOverlapper = new OverlapAlgorithm(m_fatherIndices.pBWT, m_fatherIndices.pRBWT,0.0f, 0,0,true);
+    } else {
+        std::cerr << "Error: Contributing parent undefined..." << std::endl;
+        exit(1);
+    }
+    m_pParentOverlapper->setExactModeOverlap(true);
+    m_pParentOverlapper->setExactModeIrreducible(true);
 }
 
 //
@@ -30,9 +42,77 @@ FMMergeTrioProcess::~FMMergeTrioProcess()
     
 }
 
+bool FMMergeTrioProcess::updateBitvector(std::vector<BWTInterval>& usedIntervals) {
+    // If some work was performed, update the bitvector so other threads do not try to merge the same set of reads.
+    // This uses compare-and-swap instructions to ensure the uppdate is atomic.
+    // If some other thread has merged this set (and updated
+    // the bitvector), we discard all the merged data.
+    
+    // As a given set of reads should all be merged together, we only need to make sure we atomically update
+    // the bit for the read with the lowest index in the set.
+    
+    // Sort the intervals into ascending order and remove any duplicate intervals (which can occur
+    // if the subgraph has a simple cycle)
+    std::sort(usedIntervals.begin(), usedIntervals.end(), BWTInterval::compare);
+    std::vector<BWTInterval>::iterator newEnd = std::unique(usedIntervals.begin(),
+                                                            usedIntervals.end(),
+                                                            BWTInterval::equal);
+    usedIntervals.erase(newEnd, usedIntervals.end());
+    
+    // Check if the bit in the vector has already been set for the lowest read index
+    // If it has some other thread has already output this set so we do nothing
+    int64_t lowestIndex = usedIntervals.front().lower;
+    bool currentValue = m_pMarkedReads->test(lowestIndex);
+    bool updateSuccess = false;
+    
+    if(currentValue == false)
+    {
+        // Attempt to update the bit vector with an atomic CAS. If this returns false
+        // the bit was set by some other thread
+        updateSuccess = m_pMarkedReads->updateCAS(lowestIndex, currentValue, true);
+    }
+    
+    if(updateSuccess)
+    {
+        // We successfully atomically set the bit for the first read in this set
+        // to true. We can safely update the rest of the bits and keep the merged sequences
+        // for output.
+        std::vector<BWTInterval>::const_iterator iter = usedIntervals.begin();
+        for(; iter != usedIntervals.end(); ++iter)
+        {
+            for(int64_t i = iter->lower; i <= iter->upper; ++i)
+            {
+                if(i == lowestIndex) //already set
+                    continue;
+                
+                currentValue = m_pMarkedReads->test(i);
+                if(currentValue)
+                {
+                    // This value should not be true, emit a warning
+                    std::cout << "Warning: Bit " << i << " was set outside of critical section\n";
+                }
+                else
+                {
+                    m_pMarkedReads->updateCAS(i, currentValue, true);
+                }
+            }
+        }
+        return true;
+    }
+    else
+    {
+        // Some other thread merged these reads already, discard the intermediate
+        // data and set the result to false
+        return false;
+    }
+    
+}
+
+
 //
 FMMergeResult FMMergeTrioProcess::process(const SequenceWorkItem& item)
 {
+    
     // Calculate the intervals in the forward FM-index for this read
     const BWT* pBWT = m_pOverlapper->getBWT();
     
@@ -58,6 +138,7 @@ FMMergeResult FMMergeTrioProcess::process(const SequenceWorkItem& item)
     }
     
     FMMergeResult result;
+    std::vector<VariantInfo> variantBranches;
     if(!used)
     {
         // Construct a new local graph around this read
@@ -73,7 +154,7 @@ FMMergeResult FMMergeTrioProcess::process(const SequenceWorkItem& item)
         result.usedIntervals.push_back(readInterval);
         
         // Enqueue the read for overlap detection in both directions
-        FMMergeQueue queue;
+        FMMergeTrioQueue queue;
         
         // Construct the overlap block list for this node
         SeqRecord record;
@@ -85,14 +166,14 @@ FMMergeResult FMMergeTrioProcess::process(const SequenceWorkItem& item)
         removeContainmentBlocks((int)pVertex->getSeqLen(), &blockList);
         
         // Construct the initial list of candidates from the block list
-        addCandidates(pGraph, pVertex, NULL, &blockList, queue);
+        addCandidates(pGraph, pVertex, NULL, &blockList, queue, variantBranches);
         
        // std::cout << "Root vertex:\t\t" << pVertex->getSeq().toString() << std::endl;
        // std::cout << std::endl;
         
         while(!queue.empty())
         {
-            FMMergeCandidate currCandidate = queue.front();
+            FMMergeTrioCandidate currCandidate = queue.front();
             queue.pop();
             
             // Determine whether this is a valid vertex to merge or not.
@@ -106,11 +187,18 @@ FMMergeResult FMMergeTrioProcess::process(const SequenceWorkItem& item)
             m_pOverlapper->overlapRead(record, m_minOverlap, &candidateBlockList);
             removeContainmentBlocks((int)currCandidate.pVertex->getSeqLen(), &candidateBlockList);
             
-            bool validMergeNode = checkCandidateAndTestHet(currCandidate, &candidateBlockList);
+            bool validMergeNode;
+            if (currCandidate.fromParent || !m_tryPhasing) {
+                validMergeNode = checkCandidate(currCandidate.pEdge, &candidateBlockList);
+            } else {
+                validMergeNode = checkCandidateAndTestHet(currCandidate, &candidateBlockList);
+            }
             if(validMergeNode)
             {
-                addCandidates(pGraph, currCandidate.pVertex, currCandidate.pEdge, &candidateBlockList, queue);
-                result.usedIntervals.push_back(currCandidate.interval);
+                addCandidates(pGraph, currCandidate.pVertex, currCandidate.pEdge, &candidateBlockList, queue, variantBranches);
+                if (!currCandidate.fromParent) {
+                    result.usedIntervals.push_back(currCandidate.interval);
+                }
             }
             else
             {
@@ -141,70 +229,31 @@ FMMergeResult FMMergeTrioProcess::process(const SequenceWorkItem& item)
     
     if(result.isMerged)
     {
-        // If some work was performed, update the bitvector so other threads do not try to merge the same set of reads.
-        // This uses compare-and-swap instructions to ensure the uppdate is atomic.
-        // If some other thread has merged this set (and updated
-        // the bitvector), we discard all the merged data.
-        
-        // As a given set of reads should all be merged together, we only need to make sure we atomically update
-        // the bit for the read with the lowest index in the set.
-        
-        // Sort the intervals into ascending order and remove any duplicate intervals (which can occur
-        // if the subgraph has a simple cycle)
-        std::sort(result.usedIntervals.begin(), result.usedIntervals.end(), BWTInterval::compare);
-        std::vector<BWTInterval>::iterator newEnd = std::unique(result.usedIntervals.begin(),
-                                                                result.usedIntervals.end(),
-                                                                BWTInterval::equal);
-        result.usedIntervals.erase(newEnd, result.usedIntervals.end());
-        
-        // Check if the bit in the vector has already been set for the lowest read index
-        // If it has some other thread has already output this set so we do nothing
-        int64_t lowestIndex = result.usedIntervals.front().lower;
-        bool currentValue = m_pMarkedReads->test(lowestIndex);
-        bool updateSuccess = false;
-        
-        if(currentValue == false)
-        {
-            // Attempt to update the bit vector with an atomic CAS. If this returns false
-            // the bit was set by some other thread
-            updateSuccess = m_pMarkedReads->updateCAS(lowestIndex, currentValue, true);
-        }
-        
-        if(updateSuccess)
-        {
-            // We successfully atomically set the bit for the first read in this set
-            // to true. We can safely update the rest of the bits and keep the merged sequences
-            // for output.
-            std::vector<BWTInterval>::const_iterator iter = result.usedIntervals.begin();
-            for(; iter != result.usedIntervals.end(); ++iter)
-            {
-                for(int64_t i = iter->lower; i <= iter->upper; ++i)
-                {
-                    if(i == lowestIndex) //already set
-                        continue;
-                    
-                    currentValue = m_pMarkedReads->test(i);
-                    if(currentValue)
-                    {
-                        // This value should not be true, emit a warning
-                        std::cout << "Warning: Bit " << i << " was set outside of critical section\n";
-                    }
-                    else
-                    {
-                        m_pMarkedReads->updateCAS(i, currentValue, true);
-                    }
-                }
-            }
-        }
-        else
-        {
+        result.isMerged = updateBitvector(result.usedIntervals);
+        if (!result.isMerged) {
             // Some other thread merged these reads already, discard the intermediate
             // data and set the result to false
             result.mergedSequences.clear();
             result.usedIntervals.clear();
-            result.isMerged = false;
         }
+        
     }
+    
+    // Mark in the bitvector reads on the unused variant branches....
+    std::vector<BWTInterval> variantIntervals;
+    while (variantBranches.size() > 0) {
+        std::cout << "HELLO THERE..." << std::endl;
+        VariantInfo vi = variantBranches.back(); variantBranches.pop_back();
+        BWTInterval variantReadInterval = BWTAlgorithms::findInterval(pBWT, vi.vertexString); BWTAlgorithms::updateInterval(variantReadInterval, '$', pBWT);
+        variantIntervals.push_back(variantReadInterval);
+        StringGraph* pVariantGraph = buildVariantGraph(vi.vertexID, vi.vertexString, vi.isRC, vi.ed, variantIntervals);
+        int num_v = (int)pVariantGraph->getNumVertices() - 1;
+        pVariantGraph->simplify(); // Merge nodes
+        std::vector<std::string> mergedSequences; pVariantGraph->getVertexSequences(mergedSequences);
+        printOnlyVariantPathSummary(vi.vertexString, mergedSequences[0], num_v, vi.ed);
+        
+    } if (variantIntervals.size() > 0) updateBitvector(variantIntervals);
+    
     return result;
 }
 
@@ -214,11 +263,12 @@ FMMergeResult FMMergeTrioProcess::process(const SequenceWorkItem& item)
 // using the blockList.
 // Precondition: pX is a valid vertex in the merge graph. In other words, there is a
 // unique assembly that includes pX and the root vertex.
-void FMMergeTrioProcess::addCandidates(StringGraph* pGraph, const Vertex* pX, const Edge* pEdgeToX, OverlapBlockList* pBlockList, FMMergeQueue& candidateQueue)
+void FMMergeTrioProcess::addCandidates(StringGraph* pGraph, const Vertex* pX, const Edge* pEdgeToX, OverlapBlockList* pBlockList, FMMergeTrioQueue& candidateQueue, std::vector<VariantInfo>& variantBranches)
 {
     // Count the number of edges in each direction.
     size_t numAnti = 0;
     size_t numSense = 0;
+    bool bUsedParent = false;
     
     for(OverlapBlockList::const_iterator iter = pBlockList->begin(); iter != pBlockList->end(); ++iter)
     {
@@ -228,58 +278,79 @@ void FMMergeTrioProcess::addCandidates(StringGraph* pGraph, const Vertex* pX, co
             ++numAnti;
     }
     
-    if (numAnti == 2) {
+    // If we can't extend here, use parent's reads
+    if (numAnti == 0 && numSense == 0) {
+        SeqRecord record;
+        record.id = pX->getID();
+        record.seq = pX->getSeq().toString();
+//OverlapBlockList parentBlockList;
+        m_pParentOverlapper->overlapRead(record, m_minOverlap, pBlockList);
+        removeContainmentBlocks((int)pX->getSeqLen(), pBlockList);
+        bUsedParent = true;
+    }
+    
+    std::vector<BWTInterval> variantIntervals; // Not really needed here - just a dummy for the buildVariantGraph() function to work
+    if (numAnti == 2 && m_tryPhasing) {
         VariantInfoVectors vi;
         UniqueIfPhased keep = checkIfHet(vi, pBlockList, pX, ED_ANTISENSE);
         if (keep == KEEP_FIRST) {
             pBlockList->remove(vi.overlapVec[1]);
-            StringGraph* pKeepGraph = buildVariantGraph(vi.vertexIDVec[0], vi.vertexStringVec[0], vi.isRCVec[0],ED_ANTISENSE);
-            StringGraph* pVariantGraph = buildVariantGraph(vi.vertexIDVec[1], vi.vertexStringVec[1], vi.isRCVec[1],ED_ANTISENSE);
-            int num_v = (int)pVariantGraph->getNumVertices() - 1; int num_v_keep = (int)pKeepGraph->getNumVertices() - 1;
-            pKeepGraph->simplify(); pVariantGraph->simplify(); // Merge nodes
-            std::vector<std::string> mergedSequences; std::vector<std::string> mergedSequencesKeep;
-            pVariantGraph->getVertexSequences(mergedSequences); pKeepGraph->getVertexSequences(mergedSequencesKeep);
+            VariantInfo variantBranch(vi.overlapVec[1], vi.vertexStringVec[1], vi.vertexIDVec[1], vi.isRCVec[1],ED_ANTISENSE); variantBranches.push_back(variantBranch);
+            if (m_verbose) {
+                StringGraph* pKeepGraph = buildVariantGraph(vi.vertexIDVec[0], vi.vertexStringVec[0], vi.isRCVec[0],ED_ANTISENSE,variantIntervals);
+                StringGraph* pVariantGraph = buildVariantGraph(vi.vertexIDVec[1], vi.vertexStringVec[1], vi.isRCVec[1],ED_ANTISENSE,variantIntervals);
+                int num_v = (int)pVariantGraph->getNumVertices() - 1; int num_v_keep = (int)pKeepGraph->getNumVertices() - 1;
+                pKeepGraph->simplify(); pVariantGraph->simplify(); // Merge nodes
+                std::vector<std::string> mergedSequences; std::vector<std::string> mergedSequencesKeep;
+                pVariantGraph->getVertexSequences(mergedSequences); pKeepGraph->getVertexSequences(mergedSequencesKeep);
             
-            printVariantPathSummary(vi.fullStringVec[0],vi.fullStringVec[1], mergedSequencesKeep[0], mergedSequences[0], pX, num_v_keep, num_v,ED_ANTISENSE);
+                printVariantPathSummary(vi.fullStringVec[0],vi.fullStringVec[1], mergedSequencesKeep[0], mergedSequences[0], pX, num_v_keep, num_v,ED_ANTISENSE);
+            }
         }
         if (keep == KEEP_SECOND) {
             pBlockList->remove(vi.overlapVec[0]);
-            StringGraph* pKeepGraph = buildVariantGraph(vi.vertexIDVec[1], vi.vertexStringVec[1], vi.isRCVec[1],ED_ANTISENSE);
-            StringGraph* pVariantGraph = buildVariantGraph(vi.vertexIDVec[0], vi.vertexStringVec[0], vi.isRCVec[0],ED_ANTISENSE);
-            int num_v = (int)pVariantGraph->getNumVertices() - 1; int num_v_keep = (int)pKeepGraph->getNumVertices() - 1;
-            pKeepGraph->simplify(); pVariantGraph->simplify(); // Merge nodes
-            std::vector<std::string> mergedSequences; std::vector<std::string> mergedSequencesKeep;
-            pVariantGraph->getVertexSequences(mergedSequences); pKeepGraph->getVertexSequences(mergedSequencesKeep);
-            
-            printVariantPathSummary(vi.fullStringVec[1],vi.fullStringVec[0], mergedSequencesKeep[0], mergedSequences[0], pX, num_v_keep, num_v,ED_ANTISENSE);
+            VariantInfo variantBranch(vi.overlapVec[0], vi.vertexStringVec[0], vi.vertexIDVec[0], vi.isRCVec[0],ED_ANTISENSE); variantBranches.push_back(variantBranch);
+            if (m_verbose) {
+                StringGraph* pKeepGraph = buildVariantGraph(vi.vertexIDVec[1], vi.vertexStringVec[1], vi.isRCVec[1],ED_ANTISENSE,variantIntervals);
+                StringGraph* pVariantGraph = buildVariantGraph(vi.vertexIDVec[0], vi.vertexStringVec[0], vi.isRCVec[0],ED_ANTISENSE,variantIntervals);
+                int num_v = (int)pVariantGraph->getNumVertices() - 1; int num_v_keep = (int)pKeepGraph->getNumVertices() - 1;
+                pKeepGraph->simplify(); pVariantGraph->simplify(); // Merge nodes
+                std::vector<std::string> mergedSequences; std::vector<std::string> mergedSequencesKeep;
+                pVariantGraph->getVertexSequences(mergedSequences); pKeepGraph->getVertexSequences(mergedSequencesKeep);
+                printVariantPathSummary(vi.fullStringVec[1],vi.fullStringVec[0], mergedSequencesKeep[0], mergedSequences[0], pX, num_v_keep, num_v,ED_ANTISENSE);
+            }
         }
     }
     
-    if (numSense == 2) {
+    if (numSense == 2 && m_tryPhasing) {
         VariantInfoVectors vi;
         UniqueIfPhased keep = checkIfHet(vi, pBlockList, pX, ED_SENSE);
         
         if (keep == KEEP_FIRST) {
             pBlockList->remove(vi.overlapVec[1]);
-            StringGraph* pKeepGraph = buildVariantGraph(vi.vertexIDVec[0], vi.vertexStringVec[0], vi.isRCVec[0],ED_SENSE);
-            StringGraph* pVariantGraph = buildVariantGraph(vi.vertexIDVec[1], vi.vertexStringVec[1], vi.isRCVec[1],ED_SENSE);
-            int num_v = (int)pVariantGraph->getNumVertices() - 1; int num_v_keep = (int)pKeepGraph->getNumVertices() - 1;
-            pKeepGraph->simplify(); pVariantGraph->simplify(); // Merge nodes
-            std::vector<std::string> mergedSequences; std::vector<std::string> mergedSequencesKeep;
-            pVariantGraph->getVertexSequences(mergedSequences); pKeepGraph->getVertexSequences(mergedSequencesKeep);
-            
-            printVariantPathSummary(vi.fullStringVec[0],vi.fullStringVec[1], mergedSequencesKeep[0], mergedSequences[0], pX, num_v_keep, num_v,ED_SENSE);
+            VariantInfo variantBranch(vi.overlapVec[1], vi.vertexStringVec[1], vi.vertexIDVec[1], vi.isRCVec[1],ED_ANTISENSE); variantBranches.push_back(variantBranch);
+            if (m_verbose) {
+                StringGraph* pKeepGraph = buildVariantGraph(vi.vertexIDVec[0], vi.vertexStringVec[0], vi.isRCVec[0],ED_SENSE,variantIntervals);
+                StringGraph* pVariantGraph = buildVariantGraph(vi.vertexIDVec[1], vi.vertexStringVec[1], vi.isRCVec[1],ED_SENSE,variantIntervals);
+                int num_v = (int)pVariantGraph->getNumVertices() - 1; int num_v_keep = (int)pKeepGraph->getNumVertices() - 1;
+                pKeepGraph->simplify(); pVariantGraph->simplify(); // Merge nodes
+                std::vector<std::string> mergedSequences; std::vector<std::string> mergedSequencesKeep;
+                pVariantGraph->getVertexSequences(mergedSequences); pKeepGraph->getVertexSequences(mergedSequencesKeep);
+                printVariantPathSummary(vi.fullStringVec[0],vi.fullStringVec[1], mergedSequencesKeep[0], mergedSequences[0], pX, num_v_keep, num_v,ED_SENSE);
+            }
         }
         if (keep == KEEP_SECOND) {
             pBlockList->remove(vi.overlapVec[0]);
-            StringGraph* pKeepGraph = buildVariantGraph(vi.vertexIDVec[1], vi.vertexStringVec[1], vi.isRCVec[1],ED_SENSE);
-            StringGraph* pVariantGraph = buildVariantGraph(vi.vertexIDVec[0], vi.vertexStringVec[0], vi.isRCVec[0],ED_SENSE);
-            int num_v = (int)pVariantGraph->getNumVertices() - 1; int num_v_keep = (int)pKeepGraph->getNumVertices() - 1;
-            pKeepGraph->simplify(); pVariantGraph->simplify(); // Merge nodes
-            std::vector<std::string> mergedSequences; std::vector<std::string> mergedSequencesKeep;
-            pVariantGraph->getVertexSequences(mergedSequences); pKeepGraph->getVertexSequences(mergedSequencesKeep);
-            
-            printVariantPathSummary(vi.fullStringVec[1],vi.fullStringVec[0], mergedSequencesKeep[0], mergedSequences[0], pX, num_v_keep, num_v,ED_SENSE);
+            VariantInfo variantBranch(vi.overlapVec[0], vi.vertexStringVec[0], vi.vertexIDVec[0], vi.isRCVec[0],ED_ANTISENSE); variantBranches.push_back(variantBranch);
+            if (m_verbose) {
+                StringGraph* pKeepGraph = buildVariantGraph(vi.vertexIDVec[1], vi.vertexStringVec[1], vi.isRCVec[1],ED_SENSE,variantIntervals);
+                StringGraph* pVariantGraph = buildVariantGraph(vi.vertexIDVec[0], vi.vertexStringVec[0], vi.isRCVec[0],ED_SENSE,variantIntervals);
+                int num_v = (int)pVariantGraph->getNumVertices() - 1; int num_v_keep = (int)pKeepGraph->getNumVertices() - 1;
+                pKeepGraph->simplify(); pVariantGraph->simplify(); // Merge nodes
+                std::vector<std::string> mergedSequences; std::vector<std::string> mergedSequencesKeep;
+                pVariantGraph->getVertexSequences(mergedSequences); pKeepGraph->getVertexSequences(mergedSequencesKeep);
+                printVariantPathSummary(vi.fullStringVec[1],vi.fullStringVec[0], mergedSequencesKeep[0], mergedSequences[0], pX, num_v_keep, num_v,ED_SENSE);
+            }
         }
     }
     
@@ -320,18 +391,20 @@ void FMMergeTrioProcess::addCandidates(StringGraph* pGraph, const Vertex* pX, co
             Edge* pXY = SGAlgorithms::createEdgesFromOverlap(pGraph, ovrXY, false);
             
             // Add the new vertex as a candidate
-            FMMergeCandidate candidate;
+            FMMergeTrioCandidate candidate;
             candidate.pVertex = pY;
             candidate.pEdge = pXY;
             candidate.interval = iter->getCanonicalInterval();
-            candidateQueue.push(candidate);
-            
+            if (!bUsedParent) { candidate.fromParent = false; } else { candidate.fromParent = true; }
+            if (bUsedParent || (!m_pMarkedReads->test(candidate.interval.lower))) {
+                candidateQueue.push(candidate);
+            }
         }
     }
 }
 
 // Build a unipath in one direction only
-StringGraph* FMMergeTrioProcess::buildVariantGraph(const std::string& rootId, const std::string& rootSequence, const bool rootIsRC, EdgeDir buildDirection) {
+StringGraph* FMMergeTrioProcess::buildVariantGraph(const std::string& rootId, const std::string& rootSequence, const bool rootIsRC, EdgeDir buildDirection, std::vector<BWTInterval>& variantIntervals) {
     StringGraph* pVariantGraph = new StringGraph;
     Vertex* pVertex = new(pVariantGraph->getVertexAllocator()) Vertex(rootId, rootSequence);
     pVariantGraph->addVertex(pVertex);
@@ -342,14 +415,14 @@ StringGraph* FMMergeTrioProcess::buildVariantGraph(const std::string& rootId, co
    //     if (rootIsRC) rootOrientation = ED_SENSE; else rootOrientation = ED_ANTISENSE;
    // }
     if (buildDirection == ED_SENSE) {
-        extendForwardOnly(pVariantGraph, pVertex, rootOrientation);
+        extendForwardOnly(pVariantGraph, pVertex, rootOrientation, variantIntervals);
     } else if (buildDirection == ED_ANTISENSE) {
-        extendBackwardOnly(pVariantGraph, pVertex, rootOrientation);
+        extendBackwardOnly(pVariantGraph, pVertex, rootOrientation, variantIntervals);
     }
     return pVariantGraph;
 }
 
-void FMMergeTrioProcess::extendForwardOnly(StringGraph* pGraph, Vertex* pXstart, EdgeDir& rootOrientation) {
+void FMMergeTrioProcess::extendForwardOnly(StringGraph* pGraph, Vertex* pXstart, EdgeDir& rootOrientation, std::vector<BWTInterval>& variantIntervals) {
     int numSense; int numAntisense; int numBackwardBranches = 0; Vertex* pX = pXstart; Vertex* pY; EdgeDir o = rootOrientation;
     do {
         SeqRecord record;
@@ -370,6 +443,9 @@ void FMMergeTrioProcess::extendForwardOnly(StringGraph* pGraph, Vertex* pXstart,
        // std::cout << "We have: " << numSense << " overlaps" << std::endl;
         if (numSense == 1) {
             std::string vertexID = senseBlock.toCanonicalID();
+            BWTInterval interval = senseBlock.getCanonicalInterval();
+            if (m_pMarkedReads->test(interval.lower)) { break; } // We reached a read that has altready been assembled (i.e. we are re-connecting with the correct graph)
+            
             assert(vertexID != pX->getID());
             std::string vertexSeq = senseBlock.getFullString(pX->getSeq().toString());
             Overlap ovrXY = senseBlock.toOverlap(pX->getID(), vertexID, (int)pX->getSeqLen(), (int)vertexSeq.length());
@@ -418,6 +494,8 @@ void FMMergeTrioProcess::extendForwardOnly(StringGraph* pGraph, Vertex* pXstart,
                 //std::cout << "Branch in backward direction..." << std::endl;
                 numBackwardBranches++;
                 pY->setColor(GC_RED);
+            } else {
+                variantIntervals.push_back(interval);
             }
             pX = pY;
         } else {
@@ -435,7 +513,7 @@ void FMMergeTrioProcess::extendForwardOnly(StringGraph* pGraph, Vertex* pXstart,
     } while (numSense == 1);
 }
 
-void FMMergeTrioProcess::extendBackwardOnly(StringGraph* pGraph, Vertex* pXstart, EdgeDir& rootOrientation) {
+void FMMergeTrioProcess::extendBackwardOnly(StringGraph* pGraph, Vertex* pXstart, EdgeDir& rootOrientation, std::vector<BWTInterval>& variantIntervals) {
     int numAntisense; int numBackwardBranches = 0; Vertex* pX = pXstart; Vertex* pY; EdgeDir o = rootOrientation;
     do {
         SeqRecord record;
@@ -456,6 +534,8 @@ void FMMergeTrioProcess::extendBackwardOnly(StringGraph* pGraph, Vertex* pXstart
         // std::cout << "We have: " << numSense << " overlaps" << std::endl;
         if (numAntisense == 1) {
             std::string vertexID = senseBlock.toCanonicalID();
+            BWTInterval interval = senseBlock.getCanonicalInterval();
+            if (m_pMarkedReads->test(interval.lower)) { break; } // We reached a read that has altready been assembled (i.e. we are re-connecting with the correct graph)
             assert(vertexID != pX->getID());
             std::string vertexSeq = senseBlock.getFullString(pX->getSeq().toString());
             Overlap ovrXY = senseBlock.toOverlap(pX->getID(), vertexID, (int)pX->getSeqLen(), (int)vertexSeq.length());
@@ -503,10 +583,12 @@ void FMMergeTrioProcess::extendBackwardOnly(StringGraph* pGraph, Vertex* pXstart
                 //std::cout << "Branch in backward direction..." << std::endl;
                 numBackwardBranches++;
                 pY->setColor(GC_RED);
+            } else {
+                variantIntervals.push_back(senseBlock.getCanonicalInterval());
             }
             pX = pY;
         } else {
-            std::cout << "Next we have: " << numAntisense << " overlaps" << std::endl;
+            std::cout << "HERE: Next we have: " << numAntisense << " overlaps" << std::endl;
             for(OverlapBlockList::const_iterator iter = blockList.begin(); iter != blockList.end(); ++iter)
             {
                 if(iter->getEdgeDir() == ED_ANTISENSE && o == ED_SENSE) {
@@ -543,7 +625,7 @@ bool FMMergeTrioProcess::checkCandidate(Edge* pXY, const OverlapBlockList* pBloc
 }
 
 // Check if the candidate node can be merged with the node it is linked to. Returns true if so
-bool FMMergeTrioProcess::checkCandidateAndTestHet(const FMMergeCandidate& candidate, OverlapBlockList* pBlockList)
+bool FMMergeTrioProcess::checkCandidateAndTestHet(const FMMergeTrioCandidate& candidate, OverlapBlockList* pBlockList)
 {
     // Get the direction of the edge back to the node that generated this candidate
     // pEdge is the edge TO the candidate vertex so the twin direction is the direction away
@@ -562,6 +644,7 @@ bool FMMergeTrioProcess::checkCandidateAndTestHet(const FMMergeCandidate& candid
         UniqueIfPhased keep = checkIfHet(vi, pBlockList, candidate.pVertex, mergeDir);
         if (keep == KEEP_FIRST) {
             pBlockList->remove(vi.overlapVec[1]);
+            // OverlapBlockList::iterator iter = pBlockList->begin(); iter->
             mergeDirCount--;
         }
         if (keep == KEEP_SECOND) {
@@ -644,6 +727,21 @@ void FMMergeTrioProcess::checkPresenceInParents(const std::string& seq, ParentCh
     if (allSolidFather) { result.setPresenceInFather(PRESENT_IN_PARENT); }
     else { result.setPresenceInFather(ABSENT_IN_PARENT); }
     
+}
+
+
+
+void FMMergeTrioProcess::printOnlyVariantPathSummary(const std::string& variantRootString, std::string& mergedSeqVariant, int num_v_variant, const EdgeDir& direction) {
+    if (direction == ED_SENSE) std::cout << "Sense direction: " << std::endl;
+    else if (direction == ED_ANTISENSE) std::cout << "Antisense direction: " << std::endl;
+    std::cout << "Not keeping:\t\t" << variantRootString << std::endl;
+    if (direction == ED_SENSE) {
+        if (variantRootString != mergedSeqVariant.substr(0,100)) mergedSeqVariant = reverseComplement(mergedSeqVariant);
+    } else {
+        if (variantRootString != mergedSeqVariant.substr(mergedSeqVariant.length()-100)) mergedSeqVariant = reverseComplement(mergedSeqVariant);
+    }
+    std::cout << "Extended into:\t\t" << mergedSeqVariant << " num extensions:" << num_v_variant << std::endl;
+    std::cout << std::endl;
 }
 
 // Just some printing for dubugging

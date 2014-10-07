@@ -24,12 +24,12 @@
 #include "BloomFilter.h"
 #include "SGAStats.h"
 #include "DindelRealignWindow.h"
-#include "rapidjson/document.h"
-#include "rapidjson/prettywriter.h"
-#include "rapidjson/filestream.h"
+#include "../Thirdparty/rapidjson/document.h"
+#include "../Thirdparty/rapidjson/prettywriter.h"
+#include "../Thirdparty/rapidjson/filestream.h"
 
 #if HAVE_OPENMP
-#include <omp.h>
+#include "omp.h"
 #endif
 
 // Enums

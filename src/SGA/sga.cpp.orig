@@ -16,7 +16,6 @@
 #include "preprocess.h"
 #include "merge.h"
 #include "correct.h"
-#include "correct_trio.h"
 #include "subgraph.h"
 #include "scaffold.h"
 #include "connect.h"
@@ -29,20 +28,28 @@
 #include "filterBAM.h"
 #include "cluster.h"
 #include "gen-ssa.h"
+<<<<<<< HEAD
+#include "correct-long.h"
+#include "correct_trio.h"
+#include "sample-reads.h"
+#include "convert-beetl.h"
+=======
+>>>>>>> 61e03c63d2d19e31cfdd1bf1cc70fbbb6a705a49
 #include "bwt2fa.h"
 #include "graph-diff.h"
 #include "gapfill.h"
 #include "variant-detectability.h"
 #include "rewrite-evidence-bam.h"
+<<<<<<< HEAD
 #include "PCR-pair-removal.h"
 #include "fm-mergeTrio.h"
+=======
 #include "preqc.h"
 #include "haplotype-filter.h"
 #include "graph-concordance.h"
 #include "somatic-variant-filters.h"
 #include "kmer-count.h"
-#include "contig-stats.h"
-#include "depth.h"
+>>>>>>> 61e03c63d2d19e31cfdd1bf1cc70fbbb6a705a49
 
 #define PROGRAM_BIN "sga"
 #define AUTHOR "Jared Simpson"
@@ -59,6 +66,7 @@ static const char *SGA_USAGE_MESSAGE =
 "Contact: " AUTHOR " [" PACKAGE_BUGREPORT "]\n"
 "Usage: " PROGRAM_BIN " <command> [options]\n\n"
 "Commands:\n"
+<<<<<<< HEAD
 "           preprocess            filter and quality-trim reads\n"
 "           index                 build the BWT and FM-index for a set of reads\n"
 "           merge                 merge multiple BWT/FM-index files into a single index\n"
@@ -77,6 +85,24 @@ static const char *SGA_USAGE_MESSAGE =
 "           scaffold              generate ordered sets of contigs using distance estimates\n"
 "           scaffold2fasta        convert the output of the scaffold subprogram into a fasta file\n"
 "           gapfill               fill intra-scaffold gaps\n"
+=======
+"           preprocess               filter and quality-trim reads\n"
+"           index                    build the BWT and FM-index for a set of reads\n"
+"           merge                    merge multiple BWT/FM-index files into a single index\n"
+"           bwt2fa                   transform a bwt back into a set of sequences\n"
+"           correct                  correct sequencing errors in a set of reads\n"
+"           fm-merge                 merge unambiguously overlapped sequences using the FM-index\n"
+"           overlap                  compute overlaps between reads\n"
+"           assemble                 generate contigs from an assembly graph\n"
+"           oview                    view overlap alignments\n"
+"           subgraph                 extract a subgraph from a graph\n"
+"           filter                   remove reads from a data set\n"
+"           rmdup                    duplicate read removal\n"
+"           gen-ssa                  generate a sampled suffix array for the given set of reads\n"
+"           scaffold                 generate ordered sets of contigs using distance estimates\n"
+"           scaffold2fasta           convert the output of the scaffold subprogram into a fasta file\n"
+"           gapfill                  fill intra-scaffold gaps\n"
+>>>>>>> 61e03c63d2d19e31cfdd1bf1cc70fbbb6a705a49
 "\n\nVariant Calling Commands:\n"
 "           graph-diff               compare reads to find sequence variants\n"
 "           graph-concordance        check called variants for representation in the assembly graph\n"
@@ -88,13 +114,18 @@ static const char *SGA_USAGE_MESSAGE =
 "           stats                 print summary statistics about a read set\n"
 "           filterBAM             filter out contaminating mate-pair data in a BAM file\n"
 "           cluster               find clusters of reads belonging to the same connected component in an assembly graph\n"
+<<<<<<< HEAD
 "           metagenome            assemble contigs from metagenomics data\n"
-"           PCRpair-remove        remove duplicate read-pairs (same strand, same orientation)\n"
-"           contig-stats          statistics about contigs (histogram of contig lenghts, N30, N50, N70, N90)\n"
-"           depth                 calculate read-depth, given approximate genome-size\n"
+"           PCRpair-remove        remove duplicate read-pairs (same strand, same orientation)\n"  
 //"           correct-long    correct long reads\n"
+//"           connect         resolve the complete sequence of a paired-end fragment\n"
+//"           var2vcf         convert aligned variant sequences found by graph-diff into a VCF file\n"
+//"           hapgen          generate candidate haplotypes from an assembly graph\n"
+//"           sample-reads          sample reads or read-pairs with a given probability\n"
+=======
 "           kmer-count            extract all kmers from a BWT file\n"
 //"           connect         resolve the complete sequence of a paired-end fragment\n"
+>>>>>>> 61e03c63d2d19e31cfdd1bf1cc70fbbb6a705a49
 "\nReport bugs to " PACKAGE_BUGREPORT "\n\n";
 
 int main(int argc, char** argv)
@@ -139,8 +170,6 @@ int main(int argc, char** argv)
             overlapMain(argc - 1, argv + 1);
         else if(command == "correct")
             correctMain(argc - 1, argv + 1);
-        else if(command == "correct-trio")
-            correctTrioMain(argc - 1, argv + 1);
         else if(command == "assemble")
             assembleMain(argc - 1, argv + 1);
         else if(command == "connect")
@@ -163,6 +192,17 @@ int main(int argc, char** argv)
             clusterMain(argc - 1, argv + 1);
         else if(command == "gen-ssa")
             genSSAMain(argc - 1, argv + 1);
+<<<<<<< HEAD
+        else if(command == "correct-long")
+            correctLongMain(argc - 1, argv + 1);
+        else if(command == "correct-trio")
+            correctTrioMain(argc - 1, argv + 1);
+        else if (command == "sample-reads") 
+            sampleReadsMain(argc -1, argv + 1);
+        else if(command == "convert-beetl")
+            convertBeetlMain(argc - 1, argv + 1);
+=======
+>>>>>>> 61e03c63d2d19e31cfdd1bf1cc70fbbb6a705a49
         else if(command == "bwt2fa")
             bwt2faMain(argc - 1, argv + 1);
         else if(command == "graph-diff")
@@ -185,10 +225,6 @@ int main(int argc, char** argv)
             somaticVariantFiltersMain(argc - 1, argv + 1);
         else if(command == "kmer-count")
             kmerCountMain(argc - 1, argv + 1);
-        else if(command == "contig-stats")
-            contigStatsMain(argc - 1, argv + 1);
-        else if(command == "depth")
-            depthMain(argc - 1, argv + 1);
         else
         {
             std::cerr << "Unrecognized command: " << command << "\n";

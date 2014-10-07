@@ -50,6 +50,7 @@ static const char *FMMERGETRIO_USAGE_MESSAGE =
 "      -t, --threads=NUM                use NUM worker threads (default: no threading)\n"
 "      -m, --min-overlap=LEN            minimum overlap required between two reads to merge (default: 45)\n"
 "      -o, --outfile=FILE               write the merged sequences to FILE (default: basename.merged.fa)\n"
+"      -p, --try-phasing                (experimental) Try to use the parent's reads to do phasing during assembly\n"
 "\nReport bugs to " PACKAGE_BUGREPORT "\n\n";
 
 static const char* PROGRAM_IDENT =
@@ -65,6 +66,7 @@ namespace opt
     static std::string fatherReadFile;
     static std::string outFile;
     static std::string prefix;
+    static bool bPhase = false;
     static unsigned int minOverlap = DEFAULT_MIN_OVERLAP;
 }
 
@@ -74,6 +76,7 @@ enum { OPT_HELP = 1, OPT_VERSION };
 
 static const struct option longopts[] = {
     { "contrib-parent",     required_argument,       NULL, 'c' },
+    { "try-phasing",     no_argument,       NULL, 'p' },
     { "verbose",     no_argument,       NULL, 'v' },
     { "threads",     required_argument, NULL, 't' },
     { "min-overlap", required_argument, NULL, 'm' },
@@ -86,8 +89,8 @@ static const struct option longopts[] = {
 
 
 BWTIndexSet loadForwardReverseBWT(const std::string& readFile) {
-    BWT* pBWT = new BWT(stripExtension(readFile) + BWT_EXT);
-    BWT* pRBWT = new BWT(stripExtension(readFile) + RBWT_EXT);
+    BWT* pBWT = new BWT(stripFilename(readFile) + BWT_EXT);
+    BWT* pRBWT = new BWT(stripFilename(readFile) + RBWT_EXT);
     SampledSuffixArray* pSSA = NULL;
     
     BWTIndexSet indexSet;
@@ -130,7 +133,7 @@ int FMMergeTrioMain(int argc, char** argv)
     if(opt::numThreads <= 1)
     {
         printf("[%s] starting serial-mode read merging\n", PROGRAM_IDENT);
-        FMMergeTrioProcess processor(pOverlapper, opt::minOverlap, &markedReads,motherIndices,fatherIndices, cp);
+        FMMergeTrioProcess processor(pOverlapper, opt::minOverlap, &markedReads,motherIndices,fatherIndices, cp, opt::verbose, opt::bPhase);
         SequenceProcessFramework::processSequencesSerial<SequenceWorkItem,
         FMMergeResult,
         FMMergeTrioProcess,
@@ -143,7 +146,7 @@ int FMMergeTrioMain(int argc, char** argv)
         std::vector<FMMergeTrioProcess*> processorVector;
         for(int i = 0; i < opt::numThreads; ++i)
         {
-            FMMergeTrioProcess* pProcessor = new FMMergeTrioProcess(pOverlapper, opt::minOverlap, &markedReads,motherIndices,fatherIndices, cp);
+            FMMergeTrioProcess* pProcessor = new FMMergeTrioProcess(pOverlapper, opt::minOverlap, &markedReads,motherIndices,fatherIndices, cp, opt::verbose, opt::bPhase);
             processorVector.push_back(pProcessor);
         }
         
@@ -194,7 +197,7 @@ void parseFMMergeTrioOptions(int argc, char** argv)
         switch (c)
         {
             case 'm': arg >> opt::minOverlap; break;
-            case 'p': arg >> opt::prefix; break;
+            case 'p': opt::bPhase = true; break;
             case 'o': arg >> opt::outFile; break;
             case 't': arg >> opt::numThreads; break;
             case 'c': arg >> opt::contribParent; break;

@@ -258,7 +258,7 @@ int correctTrioMain(int argc, char** argv)
 
 
 BWTIndexSet loadIndices(const std::string& readFile) {
-    BWT* pBWT = new BWT(stripExtension(readFile) + BWT_EXT, opt::sampleRate);
+    BWT* pBWT = new BWT(stripFilename(readFile) + BWT_EXT, opt::sampleRate);
     BWT* pRBWT = NULL;
     SampledSuffixArray* pSSA = NULL;
     

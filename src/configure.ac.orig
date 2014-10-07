@@ -21,7 +21,7 @@ AC_SEARCH_LIBS([gzopen],[z],,[AC_MSG_ERROR([libz not found, please install zlib 
 AC_SEARCH_LIBS([clock_gettime], [rt], [AC_DEFINE([HAVE_CLOCK_GETTIME], [1], [clock_getttime found])], )
 
 # Check for openmp
-#AX_OPENMP([openmp_cppflags="-fopenmp" AC_DEFINE(HAVE_OPENMP,1,[Define if OpenMP is enabled])])
+AX_OPENMP([openmp_cppflags="-fopenmp" AC_DEFINE(HAVE_OPENMP,1,[Define if OpenMP is enabled])])
 
 # Check for the bamtools library path
 # Bamtools has two different path formats
@@ -71,7 +71,7 @@ AC_ARG_WITH(sparsehash, AS_HELP_STRING([--with-sparsehash=PATH],
 	[specify directory containing the google sparsehash headers http://code.google.com/p/google-sparsehash/)]))
 
 if test "$with_sparsehash" -a -d "$with_sparsehash"; then
-    sparsehash_include="-I$with_sparsehash/include"
+    sparsehash_include="-I$with_sparsehash"
 fi
 
 # Warn that multithreading is not available on macosx, since it does not implement unnamed semaphores
@@ -91,7 +91,11 @@ if test "$enable_development"; then
 fi
 
 # Set compiler flags.
+<<<<<<< HEAD
+AC_SUBST(AM_CXXFLAGS, "-Wall -Wextra")
+=======
 AC_SUBST(AM_CXXFLAGS, "-Wall -Wextra $fail_on_warning -Wno-unknown-pragmas")
+>>>>>>> 61e03c63d2d19e31cfdd1bf1cc70fbbb6a705a49
 AC_SUBST(CXXFLAGS, "-O3")
 AC_SUBST(CFLAGS, "-O3")
 AC_SUBST(CPPFLAGS, "$CPPFLAGS $openmp_cppflags $sparsehash_include $bamtools_include")

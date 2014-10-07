@@ -27,6 +27,10 @@
 #include "MultiAlignment.h"
 #include "api/BamReader.h"
 
+#if HAVE_OPENMP
+#include "omp.h"
+#endif
+
 // Types
 typedef HashMap<std::string, std::string> StringStringHash;
 

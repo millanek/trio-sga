@@ -39,6 +39,30 @@ enum UniqueIfPhased
     INCONCLUSIVE
 };
 
+struct FMMergeTrioCandidate
+{
+    Vertex* pVertex;
+    Edge* pEdge; // Edge from the existing vertex to pVertex
+    BWTInterval interval; // interval containing this candidate
+    bool fromParent;
+};
+typedef std::queue<FMMergeTrioCandidate> FMMergeTrioQueue;
+
+class VariantInfo {
+public:
+    
+    VariantInfo(OverlapBlock ob, std::string vs, std::string vID, bool rc, EdgeDir e) {
+        overlap = ob; vertexString = vs; vertexID = vID; isRC = rc; ed = e;
+    }
+    
+    OverlapBlock overlap;
+    std::string fullString;
+    std::string vertexString;
+    std::string vertexID;
+    bool isRC;
+    EdgeDir ed;
+};
+
 class VariantInfoVectors {
 public:
     VariantInfoVectors() {}
@@ -99,7 +123,7 @@ class FMMergeTrioProcess
 public:
     FMMergeTrioProcess(const OverlapAlgorithm* pOverlapper,
                        int minOverlap, BitVector* pMarkedReads, BWTIndexSet& motherIndices,
-                       BWTIndexSet& fatherIndices, ContributingParent contribParent);
+                       BWTIndexSet& fatherIndices, ContributingParent contribParent, bool verbose, bool tryPhasing);
     
     ~FMMergeTrioProcess();
     
@@ -112,26 +136,30 @@ private:
                        const Vertex* pX,
                        const Edge* pEdgeToX,
                        OverlapBlockList* pBlockList,
-                       FMMergeQueue& candidateQueue);
+                       FMMergeTrioQueue& candidateQueue,
+                       std::vector<VariantInfo>& variantBranches);
     
     // Check whether the candidate can be merged into the current graph
     bool checkCandidate(Edge* pXY, const OverlapBlockList* pBlockList) const;
-    bool checkCandidateAndTestHet(const FMMergeCandidate& candidate, OverlapBlockList* pBlockList);
+    bool checkCandidateAndTestHet(const FMMergeTrioCandidate& candidate, OverlapBlockList* pBlockList);
     
     // Check is a branch in a graph could be caused by a heterozygous site
     UniqueIfPhased checkIfHet(VariantInfoVectors& vi, const OverlapBlockList* pBlockList, const Vertex* pX, const EdgeDir& direction);
     void checkPresenceInParents(const std::string& seq, ParentCheckSequenceResult& result, const int kmerLength = 31, const int startBase = 0);
     
     // Extend path from a particular vertex in only one direction
-    StringGraph* buildVariantGraph(const std::string& rootId, const std::string& rootSequence, const bool rootIsRC, EdgeDir direction);
-    void extendForwardOnly(StringGraph* pGraph, Vertex* pXstart, EdgeDir& rootOrientation);
-    void extendBackwardOnly(StringGraph* pGraph, Vertex* pXstart, EdgeDir& rootOrientation);
+    StringGraph* buildVariantGraph(const std::string& rootId, const std::string& rootSequence, const bool rootIsRC, EdgeDir direction, std::vector<BWTInterval>& variantIntervals);
+    void extendForwardOnly(StringGraph* pGraph, Vertex* pXstart, EdgeDir& rootOrientation, std::vector<BWTInterval>& variantIntervals);
+    void extendBackwardOnly(StringGraph* pGraph, Vertex* pXstart, EdgeDir& rootOrientation, std::vector<BWTInterval>& variantIntervals);
     
     //
     std::string makeVertexID(BWTInterval interval);
     
     // Just some printing for debugging
+    void printOnlyVariantPathSummary(const std::string& variantRootString, std::string& mergedSeqVariant, int num_v_variant, const EdgeDir& direction);
     void printVariantPathSummary(const std::string& keepRootString, const std::string& variantRootString, std::string& mergedSeqKeep, std::string& mergedSeqVariant, const Vertex* pX, int num_v_keep, int num_v_variant,const EdgeDir& direction);
+    
+    bool updateBitvector(std::vector<BWTInterval>& usedIntervals);
     
     const OverlapAlgorithm* m_pOverlapper;
     const int m_minOverlap;
@@ -139,6 +167,9 @@ private:
     BWTIndexSet m_motherIndices;
     BWTIndexSet m_fatherIndices;
     ContributingParent m_contribParent;
+    bool m_verbose;
+    bool m_tryPhasing;
+    OverlapAlgorithm* m_pParentOverlapper;
 };
 
 #endif /* defined(__sga_git__FMMergeTrioProcess__) */

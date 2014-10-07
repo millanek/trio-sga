@@ -2439,9 +2439,7 @@ void DindelRealignWindow::addDiploidGenotypes(DindelRealignWindowResult& result,
        sampleToReads[sampleName].push_back(r);
    }
 
-
    typedef std::map<DindelVariant, HashMap<int, int> > VariantToHaplotype;
-
    VariantToHaplotype variantToHaplotype;
 
    for (int i=0;i<numHaps;i++)
@@ -2702,7 +2700,6 @@ void DindelRealignWindow::addCalledHaplotypeMatePairs(int hapIdx,
 
                 DindelRealignWindowResult::Inference & varInf = vit->second;
 
-
                 HashMap<std::string, int> libraries, readnames;
                 varInf.haplotypeIndex.insert(hapIdx);
 
@@ -2853,7 +2850,6 @@ void DindelRealignWindow::addCalledHaplotypeSingleRead(int hapIdx,
             }
 
             DindelRealignWindowResult::Inference & varInf = vit->second;
-
 
             HashMap<std::string, int> libraries, readnames;
             varInf.haplotypeIndex.insert(hapIdx);
