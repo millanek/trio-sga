@@ -23,7 +23,7 @@
 #include "DNAString.h"
 #include "gzstream.h"
 #include "Quality.h"
-#include "BWTIndexSet.h"
+#include "../SuffixTools/BWTIndexSet.h"
 
 #define CAF_SEP ':'
 #define FUNCTION_TIMER Timer functionTimer(__PRETTY_FUNCTION__);

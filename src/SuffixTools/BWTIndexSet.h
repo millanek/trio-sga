@@ -15,7 +15,7 @@
 #include "BWTIntervalCache.h"
 #include "SampledSuffixArray.h"
 #include "PopulationIndex.h"
-#include "QualityTable.h"
+#include "../Util/QualityTable.h"
 
 // A collection of indices. For some algorithms
 // all indices are not necessary so some of these
