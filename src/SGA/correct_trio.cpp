@@ -48,6 +48,8 @@ static const char *CORRECT_USAGE_MESSAGE =
 "      --help                           display this help and exit\n"
 "      -v, --verbose                    display verbose output\n"
 "      -p, --prefix=PREFIX              use PREFIX for the names of the index files (default: prefix of the input file)\n"
+"      -m, --mother-prefix=PREFIX              use PREFIX for the names of the mother index files (default: prefix of the mother input file)\n"
+"      -f, --father-prefix=PREFIX              use PREFIX for the names of the father index files (default: prefix of the father input file)\n"
 "      -o, --outfile=FILE               write the corrected reads to FILE (default: READSFILE.ec.fa)\n"
 "      -t, --threads=NUM                use NUM threads for the computation (default: 1)\n"
 "      -d, --sample-rate=N              use occurrence array sample rate of N in the FM-index. Higher values use significantly\n"
@@ -85,6 +87,8 @@ namespace opt
     static unsigned int verbose;
     static int numThreads = 1;
     static std::string offspringPrefix;
+    static std::string motherPrefix;
+    static std::string fatherPrefix;
     static std::string offspringReadFile;
     static std::string motherReadFile;
     static std::string fatherReadFile;
@@ -111,7 +115,7 @@ namespace opt
     
 }
 
-static const char* shortopts = "p:d:t:o:k:i:x:c:v";
+static const char* shortopts = "p:d:t:o:k:i:x:c:m:f:v";
 
 enum { OPT_HELP = 1, OPT_VERSION, OPT_METRICS, OPT_DISCARD, OPT_PHASE, OPT_PAIR, OPT_MOTHER_THRESH, OPT_FATHER_THRESH  };
 
@@ -120,6 +124,8 @@ static const struct option longopts[] = {
     { "threads",       required_argument, NULL, 't' },
     { "outfile",       required_argument, NULL, 'o' },
     { "prefix",        required_argument, NULL, 'p' },
+    { "mother-prefix",        required_argument, NULL, 'm' },
+    { "father-prefix",        required_argument, NULL, 'f' },
     { "sample-rate",   required_argument, NULL, 'd' },
     { "kmer-size",     required_argument, NULL, 'k' },
     { "kmer-rounds",   required_argument, NULL, 'i' },
@@ -148,9 +154,9 @@ int correctTrioMain(int argc, char** argv)
     std::cout << "Taking into account reads from mother: " << opt::motherReadFile << " and father: "<< opt::fatherReadFile << "\n";
     
     // Load indices (  not allowing custom prefixes // BWT* pBWT = new BWT(opt::offspringPrefix + BWT_EXT, opt::sampleRate);)
-    BWTIndexSet offspringIndexSet = loadIndices(opt::offspringReadFile);
-    BWTIndexSet motherIndexSet = loadIndices(opt::motherReadFile);
-    BWTIndexSet fatherIndexSet = loadIndices(opt::fatherReadFile);
+    BWTIndexSet offspringIndexSet = loadIndices(opt::offspringPrefix + ".fastq");
+    BWTIndexSet motherIndexSet = loadIndices(opt::motherPrefix + ".fastq");
+    BWTIndexSet fatherIndexSet = loadIndices(opt::fatherPrefix + ".fastq");
      
     
     
@@ -257,32 +263,6 @@ int correctTrioMain(int argc, char** argv)
 }
 
 
-BWTIndexSet loadIndices(const std::string& readFile) {
-    BWT* pBWT = new BWT(stripFilename(readFile) + BWT_EXT, opt::sampleRate);
-    BWT* pRBWT = NULL;
-    SampledSuffixArray* pSSA = NULL;
-    
-    BWTIntervalCache* pIntervalCache = new BWTIntervalCache(opt::intervalCacheLength, pBWT);
-    
-    BWTIndexSet indexSet;
-    indexSet.pBWT = pBWT;
-    indexSet.pRBWT = pRBWT;
-    indexSet.pSSA = pSSA;
-    indexSet.pCache = pIntervalCache;
-    
-    return indexSet;
-}
-
-void deleteIndices(BWTIndexSet& indexSet) {
-    delete indexSet.pBWT;
-    if(indexSet.pCache != NULL)
-        delete indexSet.pCache;
-    if(indexSet.pRBWT != NULL)
-        delete indexSet.pRBWT;
-    if(indexSet.pSSA != NULL)
-        delete indexSet.pSSA;
-}
-
 // 
 // Handle command line arguments
 //
@@ -306,6 +286,8 @@ void parseCorrectTrioOptions(int argc, char** argv)
             case '?': die = true; break;
             case 'v': opt::verbose++; break;
             case 'i': arg >> opt::numKmerRounds; break;
+            case 'm': arg >> opt::motherPrefix; break;
+            case 'f': arg >> opt::fatherPrefix; break;
           //  case OPT_LEARN: opt::bLearnKmerParams = true; break;
             case OPT_DISCARD: bDiscardReads = false; break;
             case OPT_PHASE: opt::bPhase = true; break;   
@@ -373,6 +355,15 @@ void parseCorrectTrioOptions(int argc, char** argv)
     if(opt::offspringPrefix.empty())
     {
         opt::offspringPrefix = stripFilename(opt::offspringReadFile);
+    }
+    if(opt::motherPrefix.empty())
+    {
+        opt::motherPrefix = stripFilename(opt::motherReadFile);
+    }
+    
+    if(opt::fatherPrefix.empty())
+    {
+        opt::fatherPrefix = stripFilename(opt::fatherReadFile);
     }
     
     // Set the correction threshold

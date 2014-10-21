@@ -23,7 +23,4 @@ int correctTrioMain(int argc, char** argv);
 // options
 void parseCorrectTrioOptions(int argc, char** argv);
 
-BWTIndexSet loadIndices(const std::string& readFile);
-void deleteIndices(BWTIndexSet& indexSet);
-
 #endif

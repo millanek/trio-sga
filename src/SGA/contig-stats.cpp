@@ -48,24 +48,24 @@ static const char *STATS_USAGE_MESSAGE =
 "\n"
 "      --help                           display this help and exit\n"
 "      -b, --bin-size=NUM               bin size for the histogram of contig lengths (dafault 100bp)\n"
+"      -m, --min-size=NUM               minimum contig size for it to be counted (dafault 100bp)\n"
 "\nReport bugs to " PACKAGE_BUGREPORT "\n\n";
-
-static const char* PROGRAM_IDENT =
-PACKAGE_NAME "::" SUBPROGRAM;
 
 namespace opt
 {
     static std::string prefix;
-    static int binSize = 100.0;
+    static double binSize = 100.0;
+    static int minSize = 100;
     static std::string readsFile;
 }
 
-static const char* shortopts = "p:b:";
+static const char* shortopts = "p:b:m:";
 
 enum { OPT_HELP = 1, OPT_VERSION };
 
 static const struct option longopts[] = {
     { "prefix",             required_argument, NULL, 'p' },
+    { "min-size",           required_argument, NULL, 'm' },
     { "bin-size",           required_argument, NULL, 'b' },
     { "help",               no_argument,       NULL, OPT_HELP },
     { NULL, 0, NULL, 0 }
@@ -94,9 +94,11 @@ int contigStatsMain(int argc, char** argv)
             continue;
         } else {
             std::string::size_type cLength = line.length();
-            int flooredCLength = opt::binSize * floor(cLength/(double)opt::binSize);
-            contigLengths.push_back(line.length());
-            flooredContigLengths.push_back(flooredCLength);
+            if (cLength >= opt::minSize) { // Only use contigs that have at least minSize length
+                int flooredCLength = opt::binSize * floor(cLength/(double)opt::binSize);
+                contigLengths.push_back(line.length());
+                flooredContigLengths.push_back(flooredCLength);
+            }
         }
     }
     int maxLcontig = (int)*std::max_element(flooredContigLengths.begin(), flooredContigLengths.end());
@@ -162,6 +164,7 @@ void parseContigStatsOptions(int argc, char** argv)
         {
             case 'p': arg >> opt::prefix; break;
             case 'b': arg >> opt::binSize; break;
+            case 'm': arg >> opt::minSize; break;
             case '?': die = true; break;
             case OPT_HELP:
                 std::cout << STATS_USAGE_MESSAGE;

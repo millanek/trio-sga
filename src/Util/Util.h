@@ -23,6 +23,7 @@
 #include "DNAString.h"
 #include "gzstream.h"
 #include "Quality.h"
+#include "BWTIndexSet.h"
 
 #define CAF_SEP ':'
 #define FUNCTION_TIMER Timer functionTimer(__PRETTY_FUNCTION__);
@@ -278,6 +279,9 @@ inline bool isErrorRateAcceptable(double er, double threshold)
     else
         return false;
 }
+
+BWTIndexSet loadIndices(const std::string& readFile);
+void deleteIndices(BWTIndexSet& indexSet);
 
 
 #endif
