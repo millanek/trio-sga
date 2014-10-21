@@ -95,7 +95,6 @@ namespace opt
     static int numKmerRounds = 10;
     static int kmerLength = 31;
     static int parentKmerThreshold = 0;
-    static int offspringThreshold = 0;
     //    static bool bLearnKmerParams = false;
     static int intervalCacheLength = 10;
     
@@ -164,8 +163,8 @@ int filterParentsMain(int argc, char** argv)
     std::cout << "and keeping only reads consistent with: " << opt::offspringReadFile << "\n";
     
     // Load indices (  not allowing custom prefixes // BWT* pBWT = new BWT(opt::offspringPrefix + BWT_EXT, opt::sampleRate);)
-    BWTIndexSet parentIndexSet = loadIndicesFilter(opt::parentPrefix + ".fastq");
     BWTIndexSet offspringIndexSet = loadIndicesFilter(opt::offspringPrefix + ".fastq");
+    BWTIndexSet parentIndexSet = loadIndicesFilter(opt::parentPrefix + ".fastq");
 
     
     // Learn the parameters of the kmer corrector
@@ -174,7 +173,7 @@ int filterParentsMain(int argc, char** argv)
     
     // Open outfiles and start a timer
     std::ostream* pWriter = createWriter(opt::outFile);
-    std::ostream* pInconsistentWriter = createWriter(opt::inconsistentFile);
+    std::ostream* pInconsistentWriter = createWriter(opt::discardFile);
     
     Timer* pTimer = new Timer(PROGRAM_IDENT);
     offspringIndexSet.pBWT->printInfo();
@@ -278,7 +277,7 @@ void parseFilterParentsOptions(int argc, char** argv)
             case 't': arg >> opt::numThreads; break;
             case 'd': arg >> opt::sampleRate; break;
             case 'k': arg >> opt::kmerLength; break;
-            case 'x': arg >> opt::offspringThreshold; break;
+            case 'x': arg >> opt::parentKmerThreshold; break;
             case '?': die = true; break;
             case 'v': opt::verbose++; break;
             case 'i': arg >> opt::numKmerRounds; break;
@@ -348,6 +347,11 @@ void parseFilterParentsOptions(int argc, char** argv)
         opt::parentPrefix = stripFilename(opt::parentReadFile);
     }
     
+    if(opt::offspringPrefix.empty())
+    {
+        opt::offspringPrefix = stripFilename(opt::offspringReadFile);
+    }
+    
     // Set the correction threshold
     //if(opt::kmerThreshold <= 0)
     //{
@@ -359,7 +363,13 @@ void parseFilterParentsOptions(int argc, char** argv)
     std::string out_prefix = stripFilename(opt::offspringReadFile);
     if(!opt::outFile.empty()) {
         out_prefix = stripFilename(opt::outFile);
+    } else {
+        std::cout << "Need to provide a name for the outfile\n" << FILTER_PARENTS_USAGE_MESSAGE;
+        exit(EXIT_FAILURE);
     }
+    opt::discardFile = out_prefix + ".discarded.fa";
+    
+    
     if(bDiscardReads)
     {
         opt::discardFile = out_prefix + ".discard.fa";

@@ -15,7 +15,7 @@
 #include "BWTIntervalCache.h"
 #include "SampledSuffixArray.h"
 #include "PopulationIndex.h"
-#include "../Util/QualityTable.h"
+#include "QualityTable.h"
 
 // A collection of indices. For some algorithms
 // all indices are not necessary so some of these
@@ -25,7 +25,7 @@ struct BWTIndexSet
 {
     // Constructor
     BWTIndexSet() : pBWT(NULL), pRBWT(NULL), pCache(NULL), pSSA(NULL), pPopIdx(NULL), pQualityTable(NULL) {}
-
+    
     // Data
     const BWT* pBWT;
     const BWT* pRBWT;

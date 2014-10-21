@@ -43,7 +43,7 @@
 #include "kmer-count.h"
 #include "contig-stats.h"
 #include "depth.h"
-#include "filterParents.cpp"
+#include "filterParents.h"
 
 #define PROGRAM_BIN "sga"
 #define AUTHOR "Jared Simpson"
