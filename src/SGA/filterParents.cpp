@@ -6,7 +6,6 @@
 //  Copyright (c) 2014 University of Cambridge. All rights reserved.
 //
 
-#include "filterParents.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -28,6 +27,7 @@
 #include "KmerDistribution.h"
 #include "BWTIntervalCache.h"
 #include "LRAlignment.h"
+#include "filterParents.h"
 
 // Functions
 int learnKmerParameters(const BWT* pBWT);

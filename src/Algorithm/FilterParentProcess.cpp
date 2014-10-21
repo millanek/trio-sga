@@ -358,7 +358,7 @@ m_bPaired(bPaired),
 m_totalBases(0), m_totalErrors(0),
 m_readsKept(0), m_readsDiscarded(0),
 m_kmerQCPassed(0),
-m_qcFail(0),
+m_qcFail(0)
 {
     
 }

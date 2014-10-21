@@ -22,6 +22,15 @@
 typedef std::map<std::string, int> KmerCountMap;
 
 
+enum ECFlag
+{
+    ECF_NOTCORRECTED,
+    ECF_CORRECTED,
+    ECF_AMBIGIOUS,
+    ECF_DUPLICATE
+};
+
+
 struct KmerCachesFilter
 {
     KmerCountMap kmerCacheOffspring;
@@ -38,7 +47,7 @@ enum OffspringStatus
 class FilterParentResult
 {
 public:
-    FilterParentResult() : kmerQC(false),inFather(PARENT_ABSENT),inMother(PARENT_ABSENT) {}
+    FilterParentResult() : kmerQC(false),os(OFFSPRING_ABSENT) {}
     
     DNAString correctSequence;
     ECFlag flag;
@@ -97,7 +106,7 @@ class FilterParentPostProcess
 public:
     FilterParentPostProcess(std::ostream* pCorrectedWriter, std::ostream* pDiscardWriter, bool bCollectMetrics, bool bPaired);
     
-    ~TrioCorrectPostProcess();
+    ~FilterParentPostProcess();
     
     void process(const SequenceWorkItem& item, const FilterParentResult& result);
     void process(const SequenceWorkItemPair& workItemPair, const FilterParentPairResult& results);
@@ -110,7 +119,7 @@ private:
     
     // Helper functions for writing phased paired-end data
     void writeSingleRead(const FilterParentResult& result, const SeqRecord& seq);
-    void writeBothReads(const TrioCorrectResult& result, const SeqRecord& f_seq, const SeqRecord& s_seq);
+    void writeBothReads(const FilterParentResult& result, const SeqRecord& f_seq, const SeqRecord& s_seq);
     
     std::ostream* m_pCorrectedWriter;
     std::ostream* m_pDiscardWriter;
