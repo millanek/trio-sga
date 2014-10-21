@@ -202,12 +202,12 @@ int filterParentsMain(int argc, char** argv)
             SequenceProcessFramework::processSequencesSerial<SequenceWorkItemPair,
             FilterParentPairResult,
             FilterParentProcess,
-            FilterParentPostProcess>(opt::offspringReadFile, &processor, postProcessor);
+            FilterParentPostProcess>(opt::parentReadFile, &processor, postProcessor);
         } else {
             SequenceProcessFramework::processSequencesSerial<SequenceWorkItem,
             FilterParentResult,
             FilterParentProcess,
-            FilterParentPostProcess>(opt::offspringReadFile, &processor, postProcessor);
+            FilterParentPostProcess>(opt::parentReadFile, &processor, postProcessor);
         }
     }
     else
@@ -224,12 +224,12 @@ int filterParentsMain(int argc, char** argv)
             SequenceProcessFramework::processSequencesParallelOpenMP<SequenceWorkItemPair,
             FilterParentPairResult,
             FilterParentProcess,
-            FilterParentPostProcess>(opt::offspringReadFile, processorVector, postProcessor);
+            FilterParentPostProcess>(opt::parentReadFile, processorVector, postProcessor);
         } else {
             SequenceProcessFramework::processSequencesParallelOpenMP<SequenceWorkItem,
             FilterParentResult,
             FilterParentProcess,
-            FilterParentPostProcess>(opt::offspringReadFile, processorVector, postProcessor);
+            FilterParentPostProcess>(opt::parentReadFile, processorVector, postProcessor);
         }
         
         for(int i = 0; i < opt::numThreads; ++i)
