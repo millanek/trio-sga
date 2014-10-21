@@ -35,7 +35,7 @@ ErrorCorrectResult ErrorCorrectProcess::process(const SequenceWorkItem& workItem
 {
     ErrorCorrectResult result = correct(workItem);
     if(!result.kmerQC && !result.overlapQC && m_params.printOverlaps)
-        std::cout << workItem.read.sid << " failed error correction QC\n";
+        std::cout << workItem.read.id << " failed error correction QC\n";
     return result;
 }
     
