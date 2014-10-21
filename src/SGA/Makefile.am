@@ -64,4 +64,5 @@ sga_SOURCES = sga.cpp \
               fm-mergeTrio.h fm-mergeTrio.cpp \
               contig-stats.h contig-stats.cpp \
               depth.h depth.cpp \
+              filterParents.h filterParents.cpp \
               SGACommon.h 

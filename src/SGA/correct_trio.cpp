@@ -143,6 +143,34 @@ static const struct option longopts[] = {
     { NULL, 0, NULL, 0 }
 };
 
+
+
+BWTIndexSet loadIndicesCT(const std::string& readFile) {
+    BWT* pBWT = new BWT(stripFilename(readFile) + BWT_EXT, opt::sampleRate);
+    BWT* pRBWT = NULL;
+    SampledSuffixArray* pSSA = NULL;
+    
+    BWTIntervalCache* pIntervalCache = new BWTIntervalCache(opt::intervalCacheLength, pBWT);
+    
+    BWTIndexSet indexSet;
+    indexSet.pBWT = pBWT;
+    indexSet.pRBWT = pRBWT;
+    indexSet.pSSA = pSSA;
+    indexSet.pCache = pIntervalCache;
+    
+    return indexSet;
+}
+
+void deleteIndicesCT(BWTIndexSet& indexSet) {
+    delete indexSet.pBWT;
+    if(indexSet.pCache != NULL)
+        delete indexSet.pCache;
+    if(indexSet.pRBWT != NULL)
+        delete indexSet.pRBWT;
+    if(indexSet.pSSA != NULL)
+        delete indexSet.pSSA;
+}
+
 //
 // Main
 //
@@ -154,9 +182,9 @@ int correctTrioMain(int argc, char** argv)
     std::cout << "Taking into account reads from mother: " << opt::motherReadFile << " and father: "<< opt::fatherReadFile << "\n";
     
     // Load indices (  not allowing custom prefixes // BWT* pBWT = new BWT(opt::offspringPrefix + BWT_EXT, opt::sampleRate);)
-    BWTIndexSet offspringIndexSet = loadIndices(opt::offspringPrefix + ".fastq");
-    BWTIndexSet motherIndexSet = loadIndices(opt::motherPrefix + ".fastq");
-    BWTIndexSet fatherIndexSet = loadIndices(opt::fatherPrefix + ".fastq");
+    BWTIndexSet offspringIndexSet = loadIndicesCT(opt::offspringPrefix + ".fastq");
+    BWTIndexSet motherIndexSet = loadIndicesCT(opt::motherPrefix + ".fastq");
+    BWTIndexSet fatherIndexSet = loadIndicesCT(opt::fatherPrefix + ".fastq");
      
     
     
@@ -249,9 +277,9 @@ int correctTrioMain(int argc, char** argv)
         delete pMetricsWriter;
     }
     
-    deleteIndices(offspringIndexSet);
-    deleteIndices(motherIndexSet);
-    deleteIndices(fatherIndexSet);
+    deleteIndicesCT(offspringIndexSet);
+    deleteIndicesCT(motherIndexSet);
+    deleteIndicesCT(fatherIndexSet);
     
     delete pTimer;
     

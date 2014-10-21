@@ -145,7 +145,7 @@ class AlphaCount
         //
         inline void set(char b, Storage v)
         {
-            m_counts[getBaseRank(b)] = v;
+            m_counts[DNA_ALPHABET::getBaseRank(b)] = v;
         }
 
         //
@@ -158,7 +158,7 @@ class AlphaCount
         // 
         inline void increment(char b)
         {
-            int br = getBaseRank(b);
+            int br = DNA_ALPHABET::getBaseRank(b);
 #ifdef ALPHACOUNT_VALIDATE
             assert(m_counts[br] != maxValue);
 #endif
@@ -168,7 +168,7 @@ class AlphaCount
         //
         inline void add(char b, Storage v)
         {
-            int br = getBaseRank(b);
+            int br = DNA_ALPHABET::getBaseRank(b);
 #ifdef ALPHACOUNT_VALIDATE
             assert(m_counts[br] + v <= maxValue);
 #endif
@@ -178,7 +178,7 @@ class AlphaCount
         //
         inline void subtract(char b, Storage v)
         {
-            int br = getBaseRank(b);
+            int br = DNA_ALPHABET::getBaseRank(b);
 #ifdef ALPHACOUNT_VALIDATE
             assert(m_counts[br] > v);
 #endif            
@@ -188,7 +188,7 @@ class AlphaCount
         // 
         inline Storage get(char b) const
         {
-            return m_counts[getBaseRank(b)];
+            return m_counts[DNA_ALPHABET::getBaseRank(b)];
         }
 
         //
@@ -230,7 +230,7 @@ class AlphaCount
         inline size_t getLessThan(char b) const
         {
             size_t out = 0;
-            int stop = getBaseRank(b);
+            int stop = DNA_ALPHABET::getBaseRank(b);
             for(int i = 0; i < stop; ++i)
                 out += m_counts[i];
             return out;

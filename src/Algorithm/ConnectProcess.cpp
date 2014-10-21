@@ -32,7 +32,7 @@ ConnectProcess::~ConnectProcess()
 //
 ConnectResult ConnectProcess::process(const SequenceWorkItemPair& workItemPair)
 {
-    assert(getPairID(workItemPair.first.read.id) == workItemPair.second.read.id);
+    assert(getPairID(workItemPair.first.read.sid) == workItemPair.second.read.sid);
     ConnectResult result;
 
     StringGraphGenerator localGraph(m_pOverlapper, workItemPair.first.read, workItemPair.second.read, m_minOverlap, ED_SENSE, m_maxDistance);
@@ -76,7 +76,7 @@ void ConnectPostProcess::process(const SequenceWorkItemPair& workItemPair, const
         ++m_numPairsResolved;
 
         SeqRecord record;
-        record.id = getPairBasename(workItemPair.first.read.id);
+        record.sid = getPairBasename(workItemPair.first.read.sid);
         record.seq = result.resolvedSequence;
         record.write(*m_pWriter);
     }

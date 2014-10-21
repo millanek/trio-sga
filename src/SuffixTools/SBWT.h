@@ -58,7 +58,7 @@ class SBWT
         inline char getF(size_t idx) const
         {
             size_t ci = 0;
-            while(ci < ALPHABET_SIZE && m_predCount.getByIdx(ci) <= idx)
+            while(ci < ALPHABET_SIZE && m_predCount.getByIdx((int)ci) <= idx)
                 ci++;
             assert(ci != 0);
             return RANK_ALPHABET[ci - 1];

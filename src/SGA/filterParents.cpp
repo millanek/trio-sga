@@ -125,6 +125,34 @@ static const struct option longopts[] = {
     { NULL, 0, NULL, 0 }
 };
 
+
+
+BWTIndexSet loadIndicesFilter(const std::string& readFile) {
+    BWT* pBWT = new BWT(stripFilename(readFile) + BWT_EXT, opt::sampleRate);
+    BWT* pRBWT = NULL;
+    SampledSuffixArray* pSSA = NULL;
+    
+    BWTIntervalCache* pIntervalCache = new BWTIntervalCache(opt::intervalCacheLength, pBWT);
+    
+    BWTIndexSet indexSet;
+    indexSet.pBWT = pBWT;
+    indexSet.pRBWT = pRBWT;
+    indexSet.pSSA = pSSA;
+    indexSet.pCache = pIntervalCache;
+    
+    return indexSet;
+}
+
+void deleteIndicesFilter(BWTIndexSet& indexSet) {
+    delete indexSet.pBWT;
+    if(indexSet.pCache != NULL)
+        delete indexSet.pCache;
+    if(indexSet.pRBWT != NULL)
+        delete indexSet.pRBWT;
+    if(indexSet.pSSA != NULL)
+        delete indexSet.pSSA;
+}
+
 //
 // Main
 //
@@ -136,8 +164,8 @@ int filterParentsMain(int argc, char** argv)
     std::cout << "and keeping only reads consistent with: " << opt::offspringReadFile << "\n";
     
     // Load indices (  not allowing custom prefixes // BWT* pBWT = new BWT(opt::offspringPrefix + BWT_EXT, opt::sampleRate);)
-    BWTIndexSet parentIndexSet = loadIndices(opt::parentPrefix + ".fastq");
-    BWTIndexSet offspringIndexSet = loadIndices(opt::offspringPrefix + ".fastq");
+    BWTIndexSet parentIndexSet = loadIndicesFilter(opt::parentPrefix + ".fastq");
+    BWTIndexSet offspringIndexSet = loadIndicesFilter(opt::offspringPrefix + ".fastq");
 
     
     // Learn the parameters of the kmer corrector
@@ -218,8 +246,8 @@ int filterParentsMain(int argc, char** argv)
         delete pMetricsWriter;
     }
     
-    deleteIndices(offspringIndexSet);
-    deleteIndices(parentIndexSet);
+    deleteIndicesFilter(offspringIndexSet);
+    deleteIndicesFilter(parentIndexSet);
     
     delete pTimer;
     

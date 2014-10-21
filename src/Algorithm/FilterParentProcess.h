@@ -95,11 +95,7 @@ private:
 class FilterParentPostProcess
 {
 public:
-    FilterParentPostProcess(std::ostream* pCorrectedWriter,
-                           std::ostream* pDiscardWriter, bool bCollectMetrics, bool bPaired);
-    FilterParentPostProcess(std::ostream* pMaternalWriter, std::ostream* pPaternalWriter,
-                           std::ostream* pDiscardWriter, std::ostream* pNeitherParentWriter, std::ostream* pInconsistentPhaseWriter,
-                           bool bCollectMetrics, bool bPaired);
+    FilterParentPostProcess(std::ostream* pCorrectedWriter, std::ostream* pDiscardWriter, bool bCollectMetrics, bool bPaired);
     
     ~TrioCorrectPostProcess();
     
@@ -114,14 +110,12 @@ private:
     
     // Helper functions for writing phased paired-end data
     void writeSingleRead(const FilterParentResult& result, const SeqRecord& seq);
-    void writeBothReadsBasedOnOne(const TrioCorrectResult& result, const SeqRecord& f_seq, const SeqRecord& s_seq);
+    void writeBothReads(const TrioCorrectResult& result, const SeqRecord& f_seq, const SeqRecord& s_seq);
     
     std::ostream* m_pCorrectedWriter;
     std::ostream* m_pDiscardWriter;
-    std::ostream* m_pInconsistentPhaseWriter; // Output sequences with inconsistent phasing (read 1 in parent A, read 2 in parent B)
     bool m_bCollectMetrics;
     bool m_bPaired; // Indicate if we are processing this read set as paired-end
-    bool m_bPhase;
     
     ErrorCountMap<char> m_qualityMetrics;
     ErrorCountMap<int64_t> m_positionMetrics;
@@ -135,11 +129,7 @@ private:
     
     size_t m_kmerQCPassed;
     size_t m_qcFail;
-    size_t m_reads_paternal;
-    size_t m_reads_maternal;
-    size_t m_passed_QC_but_neither_m_or_f; // Reads that passed offspring QC but are neither in the mother or the father
-    size_t m_passed_QC_and_once_in_m_or_f;
-    size_t m_passed_QC_but_inconsistent_phase; // Reads that passed offspring QC, are below threshold in the mother and the father, but al least once in the mother or the father
+
     
 };
 

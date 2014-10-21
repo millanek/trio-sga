@@ -280,8 +280,5 @@ inline bool isErrorRateAcceptable(double er, double threshold)
         return false;
 }
 
-BWTIndexSet loadIndices(const std::string& readFile);
-void deleteIndices(BWTIndexSet& indexSet);
-
 
 #endif

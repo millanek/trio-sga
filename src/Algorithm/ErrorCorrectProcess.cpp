@@ -35,7 +35,7 @@ ErrorCorrectResult ErrorCorrectProcess::process(const SequenceWorkItem& workItem
 {
     ErrorCorrectResult result = correct(workItem);
     if(!result.kmerQC && !result.overlapQC && m_params.printOverlaps)
-        std::cout << workItem.read.id << " failed error correction QC\n";
+        std::cout << workItem.read.sid << " failed error correction QC\n";
     return result;
 }
     
@@ -418,7 +418,7 @@ ErrorCorrectResult ErrorCorrectProcess::threadingCorrection(const SequenceWorkIt
     SeqRecord currRead = workItem.read;
     std::string query = workItem.read.seq.toString();
     int k = m_params.kmerLength;
-    int nk = query.size() - m_params.kmerLength + 1;
+    int nk = (int)query.size() - m_params.kmerLength + 1;
     int right_index = -1;
     size_t x = 3;
 
@@ -466,7 +466,7 @@ ErrorCorrectResult ErrorCorrectProcess::threadingCorrection(const SequenceWorkIt
         if(score > best_score)
         {
             best_score = score;
-            best_index = i;
+            best_index = (int)i;
         }
     }
 

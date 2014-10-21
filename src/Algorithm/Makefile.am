@@ -34,5 +34,6 @@ libalgorithm_a_SOURCES = \
         KmerOverlaps.h KmerOverlaps.cpp \
         TrioCorrectProcess.h TrioCorrectProcess.cpp \
         RemovePCRDuplicates.h RemovePCRDuplicates.cpp \
-        FMMergeTrioProcess.h FMMergeTrioProcess.cpp
+        FMMergeTrioProcess.h FMMergeTrioProcess.cpp \
+        FilterParentProcess.h FilterParentProcess.cpp
         

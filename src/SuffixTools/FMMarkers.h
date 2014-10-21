@@ -44,7 +44,7 @@ struct LargeMarker
     {
         for(size_t i = 0; i < ALPHABET_SIZE; ++i)
         {
-            if(counts.getByIdx(i) != rhs.counts.getByIdx(i))
+            if(counts.getByIdx((int)i) != rhs.counts.getByIdx(i))
                 return false;
         }
         return unitIndex == rhs.unitIndex;

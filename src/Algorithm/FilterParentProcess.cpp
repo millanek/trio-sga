@@ -349,49 +349,19 @@ int FilterParentProcess::maximum(int x, int y, int z) {
 //
 //
 //
-FilterParentPostProcess::FilterParentPostProcess(std::ostream* pCorrectedWriter,
-                                               std::ostream* pDiscardWriter,
+FilterParentPostProcess::FilterParentPostProcess(std::ostream* pCorrectedWriter, std::ostream* pDiscardWriter,
                                                bool bCollectMetrics, bool bPaired) :
 m_pCorrectedWriter(pCorrectedWriter),
 m_pDiscardWriter(pDiscardWriter),
 m_bCollectMetrics(bCollectMetrics),
 m_bPaired(bPaired),
-m_bPhase(false),
 m_totalBases(0), m_totalErrors(0),
 m_readsKept(0), m_readsDiscarded(0),
 m_kmerQCPassed(0),
 m_qcFail(0),
-m_reads_paternal(0), m_reads_maternal(0),
-m_passed_QC_but_neither_m_or_f(0),
-m_passed_QC_and_once_in_m_or_f(0),
-m_passed_QC_but_inconsistent_phase(0)
 {
     
 }
-
-FilterParentPostProcess::FilterParentPostProcess(std::ostream* pMaternalWriter, std::ostream* pPaternalWriter,
-                                               std::ostream* pDiscardWriter,std::ostream* pNeitherParentWriter, std::ostream* pInconsistentPhaseWriter, bool bCollectMetrics,
-                                               bool bPaired) :
-m_pCorrectedWriter(NULL),
-m_pDiscardWriter(pDiscardWriter),
-m_pInconsistentPhaseWriter(pInconsistentPhaseWriter),
-m_bCollectMetrics(bCollectMetrics),
-m_bPaired(bPaired),
-m_bPhase(true),
-m_totalBases(0), m_totalErrors(0),
-m_readsKept(0), m_readsDiscarded(0),
-m_kmerQCPassed(0),
-m_qcFail(0),
-m_reads_paternal(0), m_reads_maternal(0),
-m_passed_QC_but_neither_m_or_f(0),
-m_passed_QC_and_once_in_m_or_f(0),
-m_passed_QC_but_inconsistent_phase(0)
-{
-    
-}
-
-
-
 
 //
 void FilterParentPostProcess::writeMetrics(std::ostream* pWriter)
@@ -402,13 +372,6 @@ void FilterParentPostProcess::writeMetrics(std::ostream* pWriter)
     *pWriter << "Reads that failed kmer QC: " << m_qcFail << "\n";
     *pWriter << "Kept " << m_readsKept << " reads. Discarded " << m_readsDiscarded <<
     " reads (" << (double)m_readsDiscarded / (m_readsKept + m_readsDiscarded)<< ")\n";
-    if (m_bPhase) {
-        *pWriter << "Reads that passed kmer QC but are neither in mother or father data: " << m_passed_QC_but_neither_m_or_f << "\n";
-        *pWriter << "Reads that passed kmer QC but the phasing is inconsistent: " << m_passed_QC_but_inconsistent_phase << "\n";
-        *pWriter<< "Reads that passed kmer QC, are below threshold in both parents, but at least once in the mother or the father: " << m_passed_QC_and_once_in_m_or_f << "\n";
-        *pWriter << "Reads for paternal chromosome assembly: " << m_reads_paternal << "(out of " << m_readsKept << ")\n";
-        *pWriter << "Reads for maternal chromosome assembly: " << m_reads_maternal << "(out of " << m_readsKept << ")\n";
-    }
     m_positionMetrics.write(pWriter, "Bases corrected by position\n", "pos");
     m_originalBaseMetrics.write(pWriter, "\nOriginal base that was corrected\n", "base");
     m_precedingSeqMetrics.write(pWriter, "\nkmer preceding the corrected base\n", "kmer");
@@ -420,13 +383,7 @@ void FilterParentPostProcess::writeMetrics(std::ostream* pWriter)
     std::cout << "Reads that failed kmer QC: " << m_qcFail << "\n";
     std::cout << "Kept " << m_readsKept << " reads. Discarded " << m_readsDiscarded <<
     " reads (" << (double)m_readsDiscarded / (m_readsKept + m_readsDiscarded)<< ")\n";
-    if (m_bPhase) {
-        std::cout << "Reads that passed kmer QC but are neither in mother or father data: " << m_passed_QC_but_neither_m_or_f << "\n";
-        std::cout << "Reads that passed kmer QC but the phasing is inconsistent: " << m_passed_QC_but_inconsistent_phase << "\n";
-        std::cout << "Reads that passed kmer QC, are below threshold in both parents, but at least once in the mother or the father: " << m_passed_QC_and_once_in_m_or_f << "\n";
-        std::cout << "Reads for paternal chromosome assembly: " << m_reads_paternal << "(out of " << m_readsKept << ")\n";
-        std::cout << "Reads for maternal chromosome assembly: " << m_reads_maternal << "(out of " << m_readsKept << ")\n";
-    }
+    
 }
 
 //
@@ -456,51 +413,12 @@ void FilterParentPostProcess::process(const SequenceWorkItem& item, const Filter
     SeqRecord record = item.read;
     record.seq = result.correctSequence;
     
-    if (m_bPhase) {
-        if (readQCPass) {
-            ++m_readsKept;
-            bool neither_m_or_f = true; // Passed QC but maybe neither in mother or the father --- I should count these
-            if (result.inMother) {
-                record.write(*m_pMaternalWriter);
-                ++m_reads_maternal;
-                neither_m_or_f = false;
-            }
-            if (result.inFather) {
-                record.write(*m_pPaternalWriter);
-                ++m_reads_paternal;
-                neither_m_or_f = false;
-            }
-            if (neither_m_or_f) {
-                ++m_passed_QC_but_neither_m_or_f;
-                // We do not discard anything that passed kmerQC (these could be de-novo mutations in the offspring)
-                record.write(*m_pMaternalWriter);
-                record.write(*m_pPaternalWriter);
-                ++m_reads_maternal;
-                ++m_reads_paternal;
-            }
-        } else {
-            if (m_pDiscardWriter == NULL) {
-                record.write(*m_pMaternalWriter);
-                record.write(*m_pPaternalWriter);
-                ++m_reads_maternal;
-                ++m_reads_paternal;
-                ++m_readsKept;
-            } else {
-                record.write(*m_pDiscardWriter);
-                ++m_readsDiscarded;
-            }
-        }
+    if (result.os == OFFSPRING_ABSENT || !readQCPass) {
+        record.write(*m_pDiscardWriter);
+        ++m_readsDiscarded;
     } else {
-        if(readQCPass || m_pDiscardWriter == NULL)
-        {
-            record.write(*m_pCorrectedWriter);
-            ++m_readsKept;
-        }
-        else
-        {
-            record.write(*m_pDiscardWriter);
-            ++m_readsDiscarded;
-        }
+        record.write(*m_pCorrectedWriter);
+        ++m_readsKept;
     }
 }
 
@@ -512,152 +430,34 @@ void FilterParentPostProcess::process(const SequenceWorkItemPair& workItemPair, 
     else { m_qcFail += 1; }
     
     // Collect metrics for the reads that were actually corrected
-    if (m_bCollectMetrics && results.firstResult.kmerQC) {
+    /* if (m_bCollectMetrics && results.firstResult.kmerQC) {
         collectMetrics(workItemPair.first.read.seq.toString(), results.firstResult.correctSequence.toString(),
                        workItemPair.first.read.qual);
     }
     if (m_bCollectMetrics && results.secondResult.kmerQC) {
         collectMetrics(workItemPair.second.read.seq.toString(), results.secondResult.correctSequence.toString(),
                        workItemPair.second.read.qual);
-    }
+    } */
     
     SeqRecord f_seq = workItemPair.first.read;
     SeqRecord s_seq = workItemPair.second.read;
     f_seq.seq = results.firstResult.correctSequence;
     s_seq.seq = results.secondResult.correctSequence;
     
-    if (m_bPhase) {
-        if((results.firstResult.kmerQC && results.secondResult.kmerQC) || m_pDiscardWriter == NULL) {
+    if(results.firstResult.kmerQC && results.secondResult.kmerQC) {
+        if (results.os != OFFSPRING_ABSENT) {
+            f_seq.write(*m_pCorrectedWriter); s_seq.write(*m_pCorrectedWriter);
             m_readsKept = m_readsKept + 2;
-            if (results.firstResult.kmerQC && results.secondResult.kmerQC) {
-                bool pair_neither_m_or_f = true; // Both reads passed QC but maybe the fragment appears to be neither from the mother nor the father
-                if ((results.firstResult.inFather == PARENT_ABOVE_THRESHOLD) && (results.secondResult.inFather == PARENT_ABOVE_THRESHOLD)) {
-                    f_seq.write(*m_pPaternalWriter); s_seq.write(*m_pPaternalWriter);
-                    m_reads_paternal = m_reads_paternal + 2;
-                    pair_neither_m_or_f = false;
-                }
-                if ((results.firstResult.inMother == PARENT_ABOVE_THRESHOLD) && (results.secondResult.inMother == PARENT_ABOVE_THRESHOLD)) {
-                    f_seq.write(*m_pMaternalWriter); s_seq.write(*m_pMaternalWriter);
-                    m_reads_maternal = m_reads_maternal + 2;
-                    pair_neither_m_or_f = false;
-                }
-                if (pair_neither_m_or_f) {
-                    if ((results.firstResult.inFather == PARENT_ABSENT) && (results.firstResult.inMother == PARENT_ABSENT)) {
-                        ++m_passed_QC_but_neither_m_or_f;
-                        f_seq.write(*m_pNeitherParentWriter);
-                    }
-                    if ((results.secondResult.inFather == PARENT_ABSENT) && (results.secondResult.inMother == PARENT_ABSENT)) {
-                        ++m_passed_QC_but_neither_m_or_f;
-                        s_seq.write(*m_pNeitherParentWriter);
-                    }
-                    findIfOnceInEitherParent(results.firstResult);
-                    findIfOnceInEitherParent(results.secondResult);
-                    // We discard pairs with inconsistent phase
-                    // Anything else that passed kmerQC could be de-novo mutations in the offspring, so we keep it
-                    if (checkInconsistentPhase(results)) {
-                        m_passed_QC_but_inconsistent_phase = m_passed_QC_but_inconsistent_phase + 2;
-                        f_seq.write(*m_pInconsistentPhaseWriter); s_seq.write(*m_pInconsistentPhaseWriter);
-                        f_seq.write(*m_pDiscardWriter); s_seq.write(*m_pDiscardWriter);
-                    }
-                    else {
-                        writeMaternalPaternal(f_seq, s_seq);
-                    }
-                }
-            } else {
-                // Not passing kmer QC implies that at least one of the read pairs failed to pass correction threshold in all
-                // three datasets (offspring, mother, father) but we do not discard them
-                if (results.firstResult.kmerQC) {  // First one passed
-                    writeBothReadsBasedOnPhaseOfOne(results.firstResult, f_seq, s_seq);
-                } else if (results.secondResult.kmerQC) {  // Second one passed - so phase the pair based on it
-                    writeBothReadsBasedOnPhaseOfOne(results.secondResult, f_seq, s_seq);
-                } else {  // Both reads failed QC, so just write them to both outputs
-                    writeMaternalPaternal(f_seq, s_seq);
-                }
-            }
-        } else if (results.firstResult.kmerQC) {
-            writeSingleReadBasedOnPhase(results.firstResult, f_seq);
-            s_seq.write(*m_pDiscardWriter);
-            ++m_readsDiscarded;
-        } else if (results.secondResult.kmerQC) {
-            writeSingleReadBasedOnPhase(results.secondResult, s_seq);
-            f_seq.write(*m_pDiscardWriter);
-            ++m_readsDiscarded;
         } else {
-            f_seq.write(*m_pDiscardWriter);
-            s_seq.write(*m_pDiscardWriter);
+            f_seq.write(*m_pDiscardWriter); s_seq.write(*m_pDiscardWriter);
             m_readsDiscarded = m_readsDiscarded + 2;
         }
     } else {
-        if((results.firstResult.kmerQC && results.secondResult.kmerQC) || m_pDiscardWriter == NULL)
-        {
-            f_seq.write(*m_pCorrectedWriter);
-            s_seq.write(*m_pCorrectedWriter);
-            m_readsKept = m_readsKept + 2;
-        } else if (results.firstResult.kmerQC) {
-            f_seq.write(*m_pCorrectedWriter);
-            s_seq.write(*m_pDiscardWriter);
-            ++m_readsKept;
-            ++m_readsDiscarded;
-        } else if (results.secondResult.kmerQC) {
-            f_seq.write(*m_pDiscardWriter);
-            s_seq.write(*m_pCorrectedWriter);
-            ++m_readsKept;
-            ++m_readsDiscarded;
-        } else {
-            f_seq.write(*m_pDiscardWriter);
-            s_seq.write(*m_pDiscardWriter);
-            m_readsDiscarded = m_readsDiscarded + 2;
-        }
+        f_seq.write(*m_pDiscardWriter); s_seq.write(*m_pDiscardWriter); m_readsDiscarded = m_readsDiscarded + 2;
     }
+    
 }
 
-
-void FilterParentPostProcess::writeSingleRead(const FilterParentResult& result, const SeqRecord& seq) {
-    ++m_readsKept;
-    bool neither_m_or_f = true;
-    if (result.inMother == PARENT_ABOVE_THRESHOLD) {
-        seq.write(*m_pMaternalWriter);
-        ++m_reads_maternal;
-        neither_m_or_f = false;
-    }
-    if (result.inFather == PARENT_ABOVE_THRESHOLD) {
-        seq.write(*m_pPaternalWriter);
-        ++m_reads_paternal;
-        neither_m_or_f = false;
-    }
-    if (neither_m_or_f) {
-        if ((result.inFather == PARENT_ABSENT) && (result.inMother == PARENT_ABSENT)) {
-            ++m_passed_QC_but_neither_m_or_f;
-            seq.write(*m_pMaternalWriter); seq.write(*m_pPaternalWriter); // Write to both streams -- could be de-novo mutation
-            seq.write(*m_pNeitherParentWriter);
-        } else {
-            ++m_passed_QC_and_once_in_m_or_f;
-        }
-    }
-}
-
-void FilterParentPostProcess::writeBothReadsBasedOnOne(const FilterParentResult& result, const SeqRecord& f_seq, const SeqRecord& s_seq) {
-    bool neither_m_or_f = true;
-    if (result.inMother == PARENT_ABOVE_THRESHOLD) {
-        f_seq.write(*m_pMaternalWriter); s_seq.write(*m_pMaternalWriter);
-        m_reads_maternal = m_reads_maternal + 2;
-        neither_m_or_f = false;
-    }
-    if (result.inFather == PARENT_ABOVE_THRESHOLD) {
-        f_seq.write(*m_pPaternalWriter); s_seq.write(*m_pPaternalWriter);
-        m_reads_paternal = m_reads_paternal + 2;
-        neither_m_or_f = false;
-    }
-    if (neither_m_or_f) {
-        if ((result.inFather == PARENT_ABSENT) && (result.inMother == PARENT_ABSENT)) {
-            ++m_passed_QC_but_neither_m_or_f;
-            f_seq.write(*m_pMaternalWriter); s_seq.write(*m_pMaternalWriter);
-            f_seq.write(*m_pPaternalWriter); s_seq.write(*m_pPaternalWriter);
-        } else {
-            ++m_passed_QC_and_once_in_m_or_f;
-        }
-    }
-}
 
 void FilterParentPostProcess::collectMetrics(const std::string& originalSeq,
                                             const std::string& correctedSeq,

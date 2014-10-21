@@ -442,30 +442,3 @@ size_t debug_getReadDistFromNames(const std::string& name1, const std::string& n
     return dist;
 }
 
-
-BWTIndexSet loadIndices(const std::string& readFile) {
-    BWT* pBWT = new BWT(stripFilename(readFile) + BWT_EXT, opt::sampleRate);
-    BWT* pRBWT = NULL;
-    SampledSuffixArray* pSSA = NULL;
-    
-    BWTIntervalCache* pIntervalCache = new BWTIntervalCache(opt::intervalCacheLength, pBWT);
-    
-    BWTIndexSet indexSet;
-    indexSet.pBWT = pBWT;
-    indexSet.pRBWT = pRBWT;
-    indexSet.pSSA = pSSA;
-    indexSet.pCache = pIntervalCache;
-    
-    return indexSet;
-}
-
-void deleteIndices(BWTIndexSet& indexSet) {
-    delete indexSet.pBWT;
-    if(indexSet.pCache != NULL)
-        delete indexSet.pCache;
-    if(indexSet.pRBWT != NULL)
-        delete indexSet.pRBWT;
-    if(indexSet.pSSA != NULL)
-        delete indexSet.pSSA;
-}
-
