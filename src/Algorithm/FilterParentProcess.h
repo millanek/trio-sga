@@ -72,6 +72,7 @@ struct FilterParentParameters
     BWTIndexSet offspringIndices;
     BWTIndexSet parentIndices;
     
+    bool bCorrect;
     // k-mer based corrector params
     int numKmerRounds;
     int kmerLength;

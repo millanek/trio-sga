@@ -34,7 +34,12 @@ FilterParentProcess::~FilterParentProcess()
 FilterParentResult FilterParentProcess::process(const SequenceWorkItem& workItem)
 {
     KmerCachesFilter kmerCaches;
-    FilterParentResult result = kmerCorrection(workItem,kmerCaches);
+    FilterParentResult result;
+    if (m_params.bCorrect) {
+        result = kmerCorrection(workItem,kmerCaches);
+    } else {
+        result.flag = ECF_CORRECTED; result.correctSequence = workItem.read.seq; result.kmerQC = true;
+    }
     result.os = checkInOffspring(result.correctSequence, kmerCaches);
     kmerCaches.kmerCacheOffspring.clear();
     kmerCaches.kmerCacheParent.clear();
@@ -47,8 +52,13 @@ FilterParentPairResult FilterParentProcess::process(const SequenceWorkItemPair& 
 {
     KmerCachesFilter kmerCaches;
     FilterParentPairResult result;
-    result.firstResult = kmerCorrection(workItemPair.first,kmerCaches);
-    result.secondResult = kmerCorrection(workItemPair.second,kmerCaches);
+    if (m_params.bCorrect) {
+        result.firstResult = kmerCorrection(workItemPair.first,kmerCaches);
+        result.secondResult = kmerCorrection(workItemPair.second,kmerCaches);
+    } else {
+        result.firstResult.flag = ECF_CORRECTED; result.firstResult.correctSequence = workItemPair.first.read.seq; result.firstResult.kmerQC = true;
+        result.secondResult.flag = ECF_CORRECTED; result.secondResult.correctSequence = workItemPair.second.read.seq; result.secondResult.kmerQC = true;
+    }
     result.firstResult.os = checkInOffspring(result.firstResult.correctSequence, kmerCaches);
     result.secondResult.os = checkInOffspring(result.secondResult.correctSequence, kmerCaches);
     if (result.firstResult.os == OFFSPRING_ABSENT || result.secondResult.os == OFFSPRING_ABSENT) {

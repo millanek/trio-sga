@@ -47,6 +47,7 @@ static const char *FILTER_PARENTS_USAGE_MESSAGE =
 "\n"
 "      --help                           display this help and exit\n"
 "      -v, --verbose                    display verbose output\n"
+"      -n, --do-not-correct             do not error-correct the reads, just check for consistency with the offspring\n"
 "      -p, --prefix=PREFIX              use PREFIX for the names of the parent index files (default: prefix of the reads file)\n"
 "      --offspring-prefix=PREFIX        use PREFIX for the names of the offspring index files (default: prefix of the reads file)\n"
 "      -o, --outfile=FILE               write the corrected reads to FILE (default: READSFILE.ec.fa)\n"
@@ -89,6 +90,7 @@ namespace opt
     static int sampleRate = BWT::DEFAULT_SAMPLE_RATE_SMALL;
     
     static bool bPaired = false;
+    static bool bCorrect = true;
     static std::string consistentFile;
     static std::string inconsistentFile;
     
@@ -100,12 +102,13 @@ namespace opt
     
 }
 
-static const char* shortopts = "p:d:t:o:k:i:x:v";
+static const char* shortopts = "p:d:t:o:k:i:x:vn";
 
 enum { OPT_HELP = 1, OPT_VERSION, OPT_METRICS, OPT_DISCARD, OPT_PAIR, OPT_OFFSPRING_THRESH, OPT_OFFSPRING_PREFIX };
 
 static const struct option longopts[] = {
     { "verbose",       no_argument,       NULL, 'v' },
+    { "do-not-correct",       no_argument,       NULL, 'n' },
     { "threads",       required_argument, NULL, 't' },
     { "outfile",       required_argument, NULL, 'o' },
     { "prefix",        required_argument, NULL, 'p' },
@@ -183,6 +186,7 @@ int filterParentsMain(int argc, char** argv)
     fpParams.offspringIndices = offspringIndexSet;
     fpParams.parentIndices = parentIndexSet;
     fpParams.parentThreshold = parentThreshold;
+    fpParams.bCorrect = opt::bCorrect;
     fpParams.offspringThreshold = 2;
     fpParams.numKmerRounds = opt::numKmerRounds;
     fpParams.kmerLength = opt::kmerLength;
@@ -278,6 +282,7 @@ void parseFilterParentsOptions(int argc, char** argv)
             case 'd': arg >> opt::sampleRate; break;
             case 'k': arg >> opt::kmerLength; break;
             case 'x': arg >> opt::parentKmerThreshold; break;
+            case 'n': opt::bCorrect = false; break;
             case '?': die = true; break;
             case 'v': opt::verbose++; break;
             case 'i': arg >> opt::numKmerRounds; break;
