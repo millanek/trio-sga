@@ -74,6 +74,15 @@ static const struct option longopts[] = {
 
 bool greaterThan (int i,int j) { return (i>j); }
 
+// Converting numbers (int, double, size_t, and char) to string
+template <typename T> std::string numToString(T i) {
+    std::string ret;
+    std::stringstream out;
+    out << i;
+    ret = out.str();
+    return ret;
+}
+
 
 //
 // Main
@@ -82,8 +91,8 @@ int contigStatsMain(int argc, char** argv)
 {
     parseContigStatsOptions(argc, argv);
     std::ifstream* readsFile = new std::ifstream(opt::readsFile.c_str());
-    std::string contigSizesFileName = opt::prefix + "_sizes.txt"; std::ofstream* contigSizesFile = new std::ofstream(contigSizesFileName.c_str());
-    std::string NXXFileName = opt::prefix + "_NXX.txt"; std::ofstream* NXXFile = new std::ofstream(NXXFileName.c_str());
+    std::string contigSizesFileName = opt::prefix + "_m" + numToString(opt::minSize) + "_b" + numToString(opt::binSize) + "_sizes.txt"; std::ofstream* contigSizesFile = new std::ofstream(contigSizesFileName.c_str());
+    std::string NXXFileName = opt::prefix + "_m" + numToString(opt::minSize) + "_b" + numToString(opt::binSize) + "_NXX.txt"; std::ofstream* NXXFile = new std::ofstream(NXXFileName.c_str());
     std::string line;
     std::vector<std::string::size_type> contigLengths;
     std::vector<std::string::size_type> flooredContigLengths;
