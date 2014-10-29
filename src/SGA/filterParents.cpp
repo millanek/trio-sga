@@ -167,7 +167,10 @@ int filterParentsMain(int argc, char** argv)
     
     // Load indices (  not allowing custom prefixes // BWT* pBWT = new BWT(opt::offspringPrefix + BWT_EXT, opt::sampleRate);)
     BWTIndexSet offspringIndexSet = loadIndicesFilter(opt::offspringPrefix + ".fastq");
-    BWTIndexSet parentIndexSet = loadIndicesFilter(opt::parentPrefix + ".fastq");
+    BWTIndexSet parentIndexSet;
+    if (opt::bCorrect) {
+        parentIndexSet = loadIndicesFilter(opt::parentPrefix + ".fastq");
+    }
 
     
     // Learn the parameters of the kmer corrector
