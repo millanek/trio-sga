@@ -65,4 +65,5 @@ sga_SOURCES = sga.cpp \
               contig-stats.h contig-stats.cpp \
               depth.h depth.cpp \
               filterParents.h filterParents.cpp \
+              removeUnpairedReads.h removeUnpairedReads.cpp \
               SGACommon.h 

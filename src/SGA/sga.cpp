@@ -44,6 +44,7 @@
 #include "contig-stats.h"
 #include "depth.h"
 #include "filterParents.h"
+#include "removeUnpairedReads.h"
 
 #define PROGRAM_BIN "sga"
 #define AUTHOR "Jared Simpson"
@@ -94,6 +95,7 @@ static const char *SGA_USAGE_MESSAGE =
 "           contig-stats          statistics about contigs (histogram of contig lenghts, N30, N50, N70, N90)\n"
 "           depth                 calculate read-depth, given approximate genome-size\n"
 "           filter-parents        correct sequencing errors in a parent and only keep reads consistent with offpsring - for merging the reads to increase coverage\n"
+"           remove-unpaired-reads       Remove reads that are not properly paired from READSFILE\n"
 //"           correct-long    correct long reads\n"
 "           kmer-count            extract all kmers from a BWT file\n"
 //"           connect         resolve the complete sequence of a paired-end fragment\n"
@@ -193,6 +195,8 @@ int main(int argc, char** argv)
             depthMain(argc - 1, argv + 1);
         else if(command == "filter-parents")
             filterParentsMain(argc - 1, argv + 1);
+        else if(command == "remove-unpaired-reads")
+            removeUPreadsMain(argc - 1, argv + 1);
         else
         {
             std::cerr << "Unrecognized command: " << command << "\n";
