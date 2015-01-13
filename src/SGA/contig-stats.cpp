@@ -113,9 +113,9 @@ int contigStatsMain(int argc, char** argv)
         if (line[0] == '>') {
             continue;
         } else {
-            if (opt::outContigsFile.empty()) { allContigs.push_back(line); }
+            if (!opt::outContigsFile.empty()) { allContigs.push_back(line); }
             std::string::size_type cLength = line.length();
-            if (cLength >= opt::minSize) { // Only use contigs that have at least minSize length
+            if ((int)cLength >= opt::minSize) { // Only use contigs that have at least minSize length
                 int flooredCLength = opt::binSize * floor(cLength/(double)opt::binSize);
                 contigLengths.push_back(line.length());
                 flooredContigLengths.push_back(flooredCLength);
@@ -166,7 +166,7 @@ int contigStatsMain(int argc, char** argv)
         }
     }
     
-    if (opt::outContigsFile.empty()) {
+    if (!opt::outContigsFile.empty()) {
         std::ofstream* outContigsFile = new std::ofstream(opt::outContigsFile.c_str());
         std::sort(allContigs.begin(), allContigs.end(), byLength);
         
