@@ -1,16 +1,17 @@
 
 setwd("/Users/milanmalinsky/Sanger_work/trio_assembly_data/140827_yeast_data/JB759_JB853_JB859_JB915/")
-a65 <- read.table("paternal_child4_0.33.contigs65.fa-contigs_sizes.txt",)
+source("/Users/milanmalinsky/Sanger_work/sga_git_direct/sga/src/bin/plot_contig_lenghts_functions.R")
+p4a65 <- read.table("paternal_child4_0.33.contigs65.fa-contigs_sizes.txt",)
 a70 <- read.table("paternal_child4_0.33.contigs70.fa-contigs_sizes.txt")
 a75 <- read.table("paternal_child4_0.33.contigs75.fa-contigs_sizes.txt")
 a80 <- read.table("paternal_child4_0.33.contigs80.fa-contigs_sizes.txt")
 plot.overlap.l(); quartz()
-a65 <- read.table("maternal_child4_0.33.contigs65.fa-contigs_sizes.txt",)
+m4a65 <- read.table("maternal_child4_0.33.contigs65.fa-contigs_sizes.txt",)
 a70 <- read.table("maternal_child4_0.33.contigs70.fa-contigs_sizes.txt")
 a75 <- read.table("maternal_child4_0.33.contigs75.fa-contigs_sizes.txt")
 a80 <- read.table("maternal_child4_0.33.contigs80.fa-contigs_sizes.txt")
 plot.overlap.l(); quartz()
-a65 <- read.table("child4_0.33.contigs65.fa-contigs_sizes.txt",)
+c4a65 <- read.table("child4_0.33.contigs65.fa-contigs_sizes.txt",)
 a70 <- read.table("child4_0.33.contigs70.fa-contigs_sizes.txt")
 a75 <- read.table("child4_0.33.contigs75.fa-contigs_sizes.txt")
 a80 <- read.table("child4_0.33.contigs80.fa-contigs_sizes.txt")
@@ -63,12 +64,20 @@ c3a75 <- read.table("child3.contigs75.fa-contigs_sizes.txt")
 c3a80 <- read.table("child3.contigs80.fa-contigs_sizes.txt")
 plot.overlap.l(c3a65,c3a70,c3a75,c3a80);
 quartz()
-plot.overlap.l.connected()
+pdf("/Users/milanmalinsky/Sanger_work/trio_assembly_data/140827_yeast_data/JB759_JB853_JB859_JB915/contig_lengths.pdf", width=10, height=7)
+plot.overlap.l.connected(c3a75,m3a75,c3a75,m3a75)
+legend("topright", legend=c("normal assembly", "trio assembly"),col=c("blue","orange"), lty=1)
+dev.off()
 
 plot.length.oneLine()
 
 plot.dpm.connected(c4a75,p4a70,m4a70) 
 
+plot.dpm.connected(c3a75,p3a65,m3a75) 
+
+upc4a65 <- read.table("paternal_child4_0.33.triomerged65_useparent-contigs_sizes.txt")
+plot.overlap.l.connected(c4a65,upc4a65,p4a65,m4a65)
+plot.dpm.connected(upc4a65,p4a65,m4a65) 
 
 plot.length.oneLine <- function() {
 	a65[,3] <- log(a65[,3],base=10); a70[,3] <- log(a70[,3],base=2); a75[,3] <- log(a75[,3],base=2); a80[,3] <- log(a80[,3],base=2)

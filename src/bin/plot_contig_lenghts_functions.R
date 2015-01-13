@@ -34,7 +34,7 @@ plot.overlap.l.connected <- function(a65,a70,a75,a80) {
 	a75x <- numeric(0); a75y <- numeric(0);
 	a80x <- numeric(0); a80y <- numeric(0);
 	
-	plot(1,1,col="white",xlim=c(0,maxL),ylim=c(0,maxC),xlab="Contig length",ylab="Count")
+	plot(1,1,col="white",xlim=c(0,maxL),ylim=c(0,maxC),xlab="Contig length",ylab="log10 contig count")
 	for (i in 1:dim(a65)[1]) {
 		a65x <- c(a65x,a65[i,1],a65[i,2])
 		a65y <- c(a65y,a65[i,3],a65[i,3])
@@ -60,4 +60,5 @@ plot.overlap.l.connected <- function(a65,a70,a75,a80) {
 	lines(a70x,a70y,col="green")
 	lines(a75x,a75y,col="blue")
 	lines(a80x,a80y,col="orange")
+	
 }
