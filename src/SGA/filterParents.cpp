@@ -175,7 +175,9 @@ int filterParentsMain(int argc, char** argv)
     
     // Learn the parameters of the kmer corrector
     int parentThreshold = 0;
-    parentThreshold = (opt::parentKmerThreshold > 0) ? opt::parentKmerThreshold : learnKmerParameters(parentIndexSet.pBWT);
+    if (opt::bCorrect) {
+        parentThreshold = (opt::parentKmerThreshold > 0) ? opt::parentKmerThreshold : learnKmerParameters(parentIndexSet.pBWT);
+    }
     
     // Open outfiles and start a timer
     std::ostream* pWriter = createWriter(opt::outFile);
