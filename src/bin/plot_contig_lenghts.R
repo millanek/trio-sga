@@ -90,3 +90,32 @@ plot.length.oneLine <- function() {
 	lines(a75[,1],a75[,3],col="blue")
 	lines(a80[,1],a80[,3],col="orange")
 }
+
+# A.calliptera assembly
+setwd("/Users/milanmalinsky/Sanger_work/trio_assembly_data/cichlid_scaffold_stats")
+jared <- read.table("maternal.lib.paired_end_and_mate_n3_5_min200_scaffolds_gapfilled_m500_b1000_sizes.txt")
+matesToPairedEnds <- read.table("maternal.lib.mate_n3_min200_to_pairedEndScaffolds_gapfilled_m500_b1000_sizes.txt")
+pdf("cichlid_scaffold_l.pdf",width=12,height=7)
+options(scipen=99)
+plot.overlap.l.connected(jared,jared,matesToPairedEnds,matesToPairedEnds);
+legend("topright",legend=c("'Normal' scaffolding", "Mates to paired-end scaffolds"), lty=1, col=c("green", "orange"))
+dev.off() 
+
+setwd("/Users/milanmalinsky/Sanger_work/trio_assembly_data/cichlid_scaffold_stats")
+normal_scaffolds <- read.table("all_92.lib.mate_n3_min200_to_pairedEndScaffolds_gapfilled_m500_b1000_sizes.txt")
+trio_scaffolds <- read.table("A_stuartgranti_maternal.lib.mate_n3_min200_to_pairedEndScaffolds_gapfilled_m500_b1000_sizes.txt")
+pdf("A_stuartgranti_scaffold_l_compare.pdf",width=7,height=3.8)
+options(scipen=99)
+plot.overlap.l.connected(normal_scaffolds,normal_scaffolds,trio_scaffolds,trio_scaffolds);
+legend("topright",legend=c("'Normal' assembly", "Trio assembly"), lty=1, lwd=2, col=c("green", "orange"))
+dev.off() 
+
+
+
+setwd("/Users/milanmalinsky/Sanger_work/trio_assembly_data/cichlid_scaffold_stats")
+normal_scaffolds <- read.table("Andinoacara_coeruleopunctatus.k41.assembled.90-contigs_min_200_n5_min200_scaffolds_gapfilled_m500_b1000_sizes.txt")
+pdf("Andinoacara_coeruleopunctatus_scaffolds_min500.pdf",width=7,height=3.8)
+options(scipen=99)
+plot.overlap.l.connected(normal_scaffolds,normal_scaffolds,normal_scaffolds,normal_scaffolds,TRUE);
+#legend("topright",legend=c("'Normal' assembly", "Trio assembly"), lty=1, lwd=2, col=c("green", "orange"))
+dev.off() 

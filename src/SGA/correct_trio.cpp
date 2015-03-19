@@ -284,9 +284,12 @@ int correctTrioMain(int argc, char** argv)
     delete pTimer;
     
     delete pWriter;
-    if(pDiscardWriter != NULL)
-        delete pDiscardWriter;
     
+    if(pMatWriter != NULL) delete pMatWriter;
+    if(pPatWriter != NULL) delete pPatWriter;
+    if(pDiscardWriter != NULL) delete pDiscardWriter;
+    if(pNeitherParentWriter != NULL) delete pNeitherParentWriter;
+    if(pInconsistentPhaseWriter != NULL) delete pInconsistentPhaseWriter;
     return 0;
 }
 

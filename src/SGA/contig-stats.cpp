@@ -171,7 +171,7 @@ int contigStatsMain(int argc, char** argv)
         std::sort(allContigs.begin(), allContigs.end(), byLength);
         
         for (std::vector<std::string>::size_type i = 0; i != allContigs.size(); i++) {
-            *outContigsFile << "scaffold-" << numToString(i) << std::endl;
+            *outContigsFile << ">scaffold-" << numToString(i) << std::endl;
             *outContigsFile << allContigs[i] << std::endl;
         }
     }
