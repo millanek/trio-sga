@@ -68,7 +68,7 @@ enum LastRead {
 int removeUPreadsMain(int argc, char** argv)
 {
     parseRemoveUPreadsOptions(argc, argv);
-    std::ifstream* readsFile = new std::ifstream(opt::readsFile.c_str());
+    std::istream* readsFile = createReader(opt::readsFile.c_str());
     std::string line;
     std::vector<std::string> currentPair;
     int lineNo = 0;
