@@ -14,7 +14,7 @@
 #include "config.h"
 
 #if HAVE_OPENMP
-//#include <omp.h>
+#include <omp.h>
 #endif
 
 #ifndef SEQUENCEPROCESSFRAMEWORK_H
@@ -276,7 +276,7 @@ size_t processWorkParallelOpenMP(Generator& generator,
     size_t numWorkItemsWrote = 0;
     size_t numThreads = processPtrVector.size();
 
-//    omp_set_num_threads(numThreads);
+    omp_set_num_threads(numThreads);
 
     bool done = false;
     while(!done)
@@ -302,8 +302,8 @@ size_t processWorkParallelOpenMP(Generator& generator,
             for(int i = 0; i < (int)inputBuffer.size(); ++i)
             {
                 // Dispatch the work to a processor and write the output to the output buffer
-//                size_t tid = omp_get_thread_num();
- //               outputBuffer[i] = processPtrVector[tid]->process(inputBuffer[i]);
+                size_t tid = omp_get_thread_num();
+                outputBuffer[i] = processPtrVector[tid]->process(inputBuffer[i]);
             }
 
             // Process the output with a single thread
