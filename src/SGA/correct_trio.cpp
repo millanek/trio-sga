@@ -410,16 +410,16 @@ void parseCorrectTrioOptions(int argc, char** argv)
         out_prefix = stripFilename(opt::outFile);
     }
     if(opt::bPhase) {
-        opt::maternalFile = "maternal_" + out_prefix + ".ec.fa";
-        opt::paternalFile = "paternal_" + out_prefix + ".ec.fa";
-        opt::neitherParentFile = "neither_" + out_prefix + ".fa";
-        opt::inconsistentPhaseFile = "inconsistent_" + out_prefix + ".fa";
+        opt::maternalFile = "maternal_" + out_prefix + ".ec.fa.gz";
+        opt::paternalFile = "paternal_" + out_prefix + ".ec.fa.gz";
+        opt::neitherParentFile = "neither_" + out_prefix + ".fa.gz";
+        opt::inconsistentPhaseFile = "inconsistent_" + out_prefix + ".fa.gz";
     } else {
-        opt::outFile = out_prefix + ".ec.fa";
+        opt::outFile = out_prefix + ".ec.fa.gz";
     }    
     if(bDiscardReads)
     {
-        opt::discardFile = out_prefix + ".discard.fa";
+        opt::discardFile = out_prefix + ".discard.fa.gz";
     }
     else
     {
