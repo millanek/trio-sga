@@ -230,18 +230,18 @@ void parsePCRpairRemovalOptions(int argc, char** argv)
     
     if(opt::outFile.empty()) {
         std::string out_prefix = stripExtension(opt::readFile);
-        opt::outFile = out_prefix + ".PCRrem.fa";
+        opt::outFile = out_prefix + ".PCRrem.fa.gz";
     } else {
         std::string out_prefix = stripExtension(opt::outFile);
-        opt::outFile = out_prefix + ".PCRrem.fa";
+        opt::outFile = out_prefix + ".PCRrem.fa.gz";
     }
     
     if(opt::discardFile.empty()) {
         std::string prefix = stripExtension(opt::readFile);
-        opt::discardFile = prefix + ".PCRdiscard.fa";
+        opt::discardFile = prefix + ".PCRdiscard.fa.gz";
     } else {
         std::string prefix = stripExtension(opt::discardFile);
-        opt::discardFile = prefix + ".PCRdiscard.fa";
+        opt::discardFile = prefix + ".PCRdiscard.fa.gz";
     }
     
     if (die)

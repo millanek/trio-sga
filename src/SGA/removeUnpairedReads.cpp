@@ -43,7 +43,7 @@ static const char *RUPR_USAGE_MESSAGE =
 namespace opt
 {
     static std::string prefix;
-    static std::string readsFile;
+    static std::string readsFile = "";
 }
 
 static const char* shortopts = "p:";
@@ -68,7 +68,12 @@ enum LastRead {
 int removeUPreadsMain(int argc, char** argv)
 {
     parseRemoveUPreadsOptions(argc, argv);
-    std::istream* readsFile = createReader(opt::readsFile.c_str());
+    std::istream* readsFile;
+    if (opt::readsFile == "") {
+        readsFile = &std::cin;
+    } else {
+        readsFile = createReader(opt::readsFile.c_str());
+    }
     std::string line;
     std::vector<std::string> currentPair;
     int lineNo = 0;
@@ -152,7 +157,7 @@ void parseRemoveUPreadsOptions(int argc, char** argv)
         }
     }
     
-    if (argc - optind < 1)
+    if (argc - optind < 0)
     {
         std::cerr << SUBPROGRAM ": missing arguments\n";
         die = true;
@@ -164,17 +169,16 @@ void parseRemoveUPreadsOptions(int argc, char** argv)
     }
     
     
-    
-    
-    
     if (die)
     {
         std::cout << "\n" << RUPR_USAGE_MESSAGE;
         exit(EXIT_FAILURE);
     }
     
-    // Parse the input filenames
-    opt::readsFile = argv[optind++];
+    // Parse the input filename
+    if (argc - optind == 1) {
+        opt::readsFile = argv[optind++];
+    }
     
     if(opt::prefix.empty())
     {
