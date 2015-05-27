@@ -281,7 +281,7 @@ int correctTrioMain(int argc, char** argv)
     deleteIndicesCT(motherIndexSet);
     deleteIndicesCT(fatherIndexSet);
     
-    delete pTimer;
+    delete pTimer; // pMatWriter->flush(); pPatWriter->flush();
     
     delete pWriter;
     
