@@ -173,6 +173,7 @@ int contigStatsMain(int argc, char** argv)
         for (std::vector<std::string>::size_type i = 0; i != allContigs.size(); i++) {
             writeFastaRecord(outContigsFile, ">scaffold-" + numToString(i), allContigs[i]);
         }
+        outContigsFile->flush();
     }
     
     //print_vector(contigLengths, *contigSizesFile, '\n');
