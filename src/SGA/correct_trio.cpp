@@ -71,12 +71,11 @@ static const char *CORRECT_USAGE_MESSAGE =
 "                                       Useful if read filtering is done later via 'sga filter' command using index of corrected reads" 
 "                                       (DOES THIS MAKE A DIFFERENCE?)\n"        
 "                                       Also, when dealing with paired-end, ensures that the output file(s) still contain both reads of the pair\n"
-"          --paired                     The reads are paired-end with records interleaved within a single file\n"
-"                                       The read pairing information is going to be used in phasing\n"
-"                                       i.e. separating reads to maternal_READSFILE_ec.fa and paternal_READSFILE_ec.fa\n"
+"          --unpaired                   The reads are not paired-end\n"
+"                                       (default: reads are assumed to be paired-end with records interleaved within a single file)\n"
+"                                       The read pairing information is used in phasing with the --phase option\n"
 "          --phase                      Separate offspring reads into two files for assembling maternal and paternal chromosomes separately\n"
 "                                       Filenames will be: maternal_READSFILE_ec.fa paternal_READSFILE_ec.fa\n"
-
 "\nReport bugs to " PACKAGE_BUGREPORT "\n\n";
 
 static const char* PROGRAM_IDENT =
@@ -98,7 +97,7 @@ namespace opt
     static int sampleRate = BWT::DEFAULT_SAMPLE_RATE_SMALL;
     
     static bool bPhase = false;
-    static bool bPaired = false;
+    static bool bPaired = true;
     static std::string maternalFile;
     static std::string paternalFile;
     static std::string neitherParentFile;
@@ -117,7 +116,7 @@ namespace opt
 
 static const char* shortopts = "p:d:t:o:k:i:x:c:m:f:v";
 
-enum { OPT_HELP = 1, OPT_VERSION, OPT_METRICS, OPT_DISCARD, OPT_PHASE, OPT_PAIR, OPT_MOTHER_THRESH, OPT_FATHER_THRESH  };
+enum { OPT_HELP = 1, OPT_VERSION, OPT_METRICS, OPT_DISCARD, OPT_PHASE, OPT_UNPAIR, OPT_MOTHER_THRESH, OPT_FATHER_THRESH  };
 
 static const struct option longopts[] = {
     { "verbose",       no_argument,       NULL, 'v' },
@@ -134,7 +133,7 @@ static const struct option longopts[] = {
     { "mother-kmer-threshold",   required_argument, NULL, OPT_MOTHER_THRESH },
     { "father-kmer-threshold",   required_argument, NULL, OPT_FATHER_THRESH },
  //   { "learn",         no_argument,       NULL, OPT_LEARN },
-    { "paired",         no_argument,       NULL, OPT_PAIR },
+    { "unpaired",         no_argument,       NULL, OPT_UNPAIR },
     { "phase",         no_argument,       NULL, OPT_PHASE },
     { "do-not-discard",       no_argument,       NULL, OPT_DISCARD },
     { "help",          no_argument,       NULL, OPT_HELP },
@@ -322,7 +321,7 @@ void parseCorrectTrioOptions(int argc, char** argv)
           //  case OPT_LEARN: opt::bLearnKmerParams = true; break;
             case OPT_DISCARD: bDiscardReads = false; break;
             case OPT_PHASE: opt::bPhase = true; break;   
-            case OPT_PAIR: opt::bPaired = true; break;
+            case OPT_UNPAIR: opt::bPaired = false; break;
             case OPT_METRICS: arg >> opt::metricsFile; break;
             case OPT_MOTHER_THRESH: arg >> opt::motherThreshold; break;
             case OPT_FATHER_THRESH: arg >> opt::fatherThreshold; break;
